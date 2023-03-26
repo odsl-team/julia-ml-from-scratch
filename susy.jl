@@ -1,10 +1,11 @@
 using StructArrays
 using Random
 using CompositionsBase
-
-using CUDA, Adapt
+using Adapt
 
 using BenchmarkTools
+
+
 
 #=
 using HDF5
@@ -174,12 +175,24 @@ pullback(dY, model, X)
 
 
 #=
-cu_model = adapt(CuArray, model)
-cu_dY = adapt(CuArray, dY)
-cu_X = adapt(CuArray, X)
-cu_model(cu_X)
-typeof(pullback(cu_dY, cu_model, cu_X))
-@benchmark pullback($cu_dY, $cu_model, $cu_X)
+using CUDA
+GPUArray = CuArray
+
+using Metal
+GPUArray = MtlArray
+
+gpu_model = adapt(GPUArray, model)
+typeof(gpu_model)
+gpu_dY = adapt(GPUArray, dY)
+gpu_X = adapt(GPUArray, X)
+gpu_model(gpu_X)
+typeof(pullback(gpu_dY, gpu_model, gpu_X))
+
+@benchmark $model($X)
+@benchmark $gpu_model($gpu_X)
+
+@benchmark pullback($dY, $model, $X)
+@benchmark pullback($gpu_dY, $gpu_model, $gpu_X)
 =#
 
 
@@ -321,14 +334,14 @@ plot(
 # Running on a GPU:
 
 using CUDA
-cu_model = fmap(cu, model)
+gpu_model = fmap(cu, model)
 cu_loss = fmap(cu, loss)
-cu_X = cu(X)
+gpu_X = cu(X)
 
-grad_model(cu_model, cu_loss, cu_X)
-loss_grad_model(cu_model, cu_loss, cu_X)
-optimizer(cu_model, grad_model(cu_model, cu_loss, cu_X))
+grad_model(gpu_model, cu_loss, gpu_X)
+loss_grad_model(gpu_model, cu_loss, gpu_X)
+optimizer(gpu_model, grad_model(gpu_model, cu_loss, gpu_X))
 
 @benchmark loss_grad_model($model, $loss, $X)
-@benchmark loss_grad_model($cu_model, $cu_loss, $cu_X)
+@benchmark loss_grad_model($gpu_model, $cu_loss, $gpu_X)
 =#
