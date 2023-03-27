@@ -13,12 +13,13 @@ using Adapt
 using Functors: @functor, functor, fmap
 
 using Plots
+import ProgressMeter
 
 using HDF5
 input = h5open(joinpath(ENV["DATADIR"], "SUSY.hdf5"))
 
 features = copy(transpose(read(input["features"])))
-labels = Bool.(read(input["labels"]))
+labels = Bool.(transpose(read(input["labels"])))
 
 #=
 using Random
@@ -164,8 +165,7 @@ model = opcompose(
     LinearLayer(rng, 128, 128),
     BroadcastFunction(relu),
     LinearLayer(rng, 128, 1),
-    BroadcastFunction(logistic),
-    vec
+    BroadcastFunction(logistic)
 )
 
 
@@ -189,7 +189,7 @@ xentropy(false, 0.3) ≈ - loglikelihood(Bernoulli(0.3), false)
 pullback(dy, ::typeof(xentropy), label, output) = NoTangent(), NoTangent(), - dy / ifelse(label, output, output - 1)
 
 
-f_xentroy_loss(labels::AbstractVector{Bool}) = mean ∘ Fix1(BroadcastFunction(xentropy), labels)
+f_xentroy_loss(labels) = mean ∘ Fix1(BroadcastFunction(xentropy), labels)
 
 
 
@@ -215,8 +215,8 @@ m = adapt(ArrayType, model)
 X_all = adapt(ArrayType, features)
 L_all = adapt(ArrayType, labels)
 
-L_train = view(L_all, idxs_train)
-L_test = view(L_all, idxs_test)
+L_train = view(L_all, :, idxs_train)
+L_test = view(L_all, :, idxs_test)
 X_train = view(X_all, : ,idxs_train)
 X_test = view(X_all, :, idxs_test)
 
@@ -227,7 +227,7 @@ batchsize = 50000
 shuffled_idxs = shuffle(rng, eachindex(L_train))
 partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
 idxs = first(partitions)
-L = L_train[idxs]
+L = L_train[:, idxs]
 X = X_train[:, idxs]
 
 f_loss = f_xentroy_loss(L)
@@ -237,12 +237,13 @@ l = f_model_loss(X)
 grad_model_loss = pullback(one(Float32), f_model_loss, X)
 
 #=
+using BenchmarkTools
 @benchmark $f_model_loss($X)
 @benchmark pullback(one(Float32), $f_model_loss, $X)
 =#
 
-model_loss.inner == m
-grad_model = grad_l[1].inner
+f_model_loss.inner == m
+grad_model = grad_model_loss[1].inner
 
 
 # Define gradient descent optimizer:
@@ -268,19 +269,22 @@ optimizer(m, grad_model) isa typeof(m)
 
 
 # Train model, using batches and learning rate schedule:
+n_epochs = 1
 
 m_trained = deepcopy(m)
 loss_history = zeros(0)
 for optimizer in GradientDecent.([0.01 #=, 0.025, 0.01, 0.0025, 0.001, 0.00025=#])
-    @showprogress for epoch in 1:1 #250
-        shuffled_idxs = shuffle(rng, eachindex(L_train))
+    n_batches = length(partition(axes(L_train, 2), batchsize))
+    p = ProgressMeter.Progress(n_epochs * n_batches, 0.1, "Training...")
+    for epoch in 1:n_epochs
+        shuffled_idxs = shuffle(rng, axes(L_train, 2))
         partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
 
         idxs = first(partitions)
         
         batch_loss_history = zeros(0)
         for idxs in partitions
-            L = L_train[idxs]
+            L = L_train[:, idxs]
             X = X_train[:, idxs]
 
             f_loss = f_xentroy_loss(L)
@@ -289,15 +293,16 @@ for optimizer in GradientDecent.([0.01 #=, 0.025, 0.01, 0.0025, 0.001, 0.00025=#
             loss_current_batch = f_model_loss(X)
             push!(loss_history, loss_current_batch)
             grad_model_loss = pullback(one(Float32), f_model_loss, X)
-            grad_model = grad_l[1].inner
-
-            @info loss_current_batch
+            grad_model = grad_model_loss[1].inner
 
             m_trained = optimizer(m_trained, grad_model)
+
+            ProgressMeter.next!(p; showvalues = [(:loss_train, loss_current_batch),#= (:loss_test, loss_test)=#])
         end
         #push!(loss_history, mean(batch_loss_history))
     end
 end
+ProgressMeter.finish!(p)
 
 plot(loss_history)
 
