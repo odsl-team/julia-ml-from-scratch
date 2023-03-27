@@ -1,15 +1,12 @@
+# This file is licensed under the MIT License (MIT).
+
 using LinearAlgebra, Statistics, Random
 using StructArrays
 using CompositionsBase
 using Adapt
 using Base: Fix1
 using Base.Broadcast: BroadcastFunction
-
-using HDF5
 using Plots
-
-using BenchmarkTools
-
 
 using HDF5
 input = h5open(joinpath(ENV["DATADIR"], "SUSY.hdf5"))
@@ -20,7 +17,6 @@ labels = Bool.(read(input["labels"]))
 #=
 using Random
 # using LogExpFunctions, Distributions
-using Zygote, Optimisers
 using ChainRulesCore
 using Base.Iterators: partition
 using Functors: @functor, functor, fmap
@@ -100,6 +96,14 @@ end
 
 # @functor LinearLayer
 
+(f::LinearLayer)(x::AbstractVecOrMat{<:Real}) = f.A * x .+ f.b
+
+function pullback(dy, f::LinearLayer, x)
+    _, dA, dx = pullback(dy, *, f.A, x)
+    db = vec(sum(dy, dims = 2))
+    ((A = dA, b = db), dx)
+end
+
 
 function glorot_uniform!(rng::AbstractRNG, A::AbstractMatrix{T}, gain::Real = one(T)) where {T<:Real}
     fan_in_plus_fan_out = sum(size(A))
@@ -126,18 +130,6 @@ function LinearLayer(rng::AbstractRNG, n_in::Integer, n_out::Integer, f_init! = 
     fill!(b, zero(T))
     return LinearLayer(A, b)
 end
-
-
-(f::LinearLayer)(x::AbstractVecOrMat{<:Real}) = f.A * x .+ f.b
-
-function pullback(dy, f::LinearLayer, x)
-    _, dA, dx = pullback(dy, *, f.A, x)
-    db = vec(sum(dy, dims = 2))
-    ((A = dA, b = db), dx)
-end
-
-
-
 
 
 
@@ -180,10 +172,6 @@ pullback(dY, model, X)
 
 xentropy(label::Bool, output::Real) = - log(ifelse(label, output, 1 - output))
 
-pullback(dy, ::typeof(xentropy), label, output) = NoTangent(), NoTangent(), - dy / ifelse(label, output, output - 1)
-
-f_xentroy_loss(labels::AbstractVector{Bool}) = mean ∘ Fix1(BroadcastFunction(xentropy), labels)
-
 #=
 using Distributions
 xentropy(true, 0.3) ≈ - loglikelihood(Bernoulli(0.3), true)
@@ -191,63 +179,15 @@ xentropy(false, 0.3) ≈ - loglikelihood(Bernoulli(0.3), false)
 =#
 
 
-#=
-using CUDA
-GPUArray = CuArray
+pullback(dy, ::typeof(xentropy), label, output) = NoTangent(), NoTangent(), - dy / ifelse(label, output, output - 1)
 
-# using Metal
-# GPUArray = MtlArray
 
-gpu_model = adapt(GPUArray, model)
-typeof(gpu_model)
-gpu_dY = adapt(GPUArray, dY)
-gpu_X = adapt(GPUArray, X)
-gpu_model(gpu_X)
-typeof(pullback(gpu_dY, gpu_model, gpu_X))
+f_xentroy_loss(labels::AbstractVector{Bool}) = mean ∘ Fix1(BroadcastFunction(xentropy), labels)
 
-@benchmark $model($X)
-@benchmark $gpu_model($gpu_X)
 
-@benchmark pullback($dY, $model, $X)
-@benchmark pullback($gpu_dY, $gpu_model, $gpu_X)
 
-gpu_features = adapt(GPUArray, features);
-gpu_labels = adapt(GPUArray, labels);
-
-idxs = 1:50000
-
-Y = model(view(features, :, idxs));
-gpu_Y = gpu_model(view(gpu_features, :, idxs));
-
-@benchmark $model(view($features, :, idxs))
-@benchmark $gpu_model(view($gpu_features, :, idxs))
-
-@benchmark sum(pullback($Y, $model, view($features, :, idxs))[2])
-@benchmark sum(pullback($gpu_Y, $gpu_model, view($gpu_features, :, idxs))[2])
-
-f_loss = f_xentroy_loss(view(labels, idxs))
-gpu_f_loss = f_xentroy_loss(view(gpu_labels, idxs))
-
-(f_loss ∘ model)(view(features, :, idxs))
-(gpu_f_loss ∘ gpu_model)(view(gpu_features, :, idxs))
-
-typeof(pullback(one(Float32), f_loss ∘ model, view(features, :, idxs)))
-typeof(pullback(one(Float32), gpu_f_loss ∘ gpu_model, view(gpu_features, :, idxs)))
-
-@benchmark pullback(one(Float32), $f_loss ∘ $model, view($features, :, idxs))
-@benchmark pullback(one(Float32), $gpu_f_loss ∘ $gpu_model, view($gpu_features, :, idxs))
-=#
-
-#=
-include("approx_cmp.jl")
-
-idxs = 1:50000
-f_loss = f_xentroy_loss(view(labels, idxs))
-x = view(features, :, idxs)
-@assert test_pullback(model, x)
-@assert test_pullback(f_loss ∘ model, x)
-=#
-
+# =========================================================================================
+# =========================================================================================
 
 #stephist(Y, nbins = 100)
 

@@ -1,4 +1,6 @@
-using Zygote
+# This file is licensed under the MIT License (MIT).
+
+import Zygote
 
 # Only compare fields present in both a and b, they must share at least one field:
 function approx_cmp(a::T, b::U; kwargs...) where {T,U}
