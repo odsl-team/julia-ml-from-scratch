@@ -193,6 +193,10 @@ typeof(pullback(gpu_dY, gpu_model, gpu_X))
 @benchmark pullback($dY, $model, $X)
 @benchmark pullback($gpu_dY, $gpu_model, $gpu_X)
 
+gpu_features = adapt(GPUArray, features);
+Y = gpu_model(view(gpu_features, :, 1:50000));
+gpu_Y = gpu_model(view(gpu_features, :, 1:50000));
+
 @benchmark $model(view($features, :, 1:50000))
 @benchmark $gpu_model(view($gpu_features, :, 1:50000))
 
