@@ -363,6 +363,11 @@ for epoch in 1:n_epochs
         f_model_loss = f_loss ∘ m_trained
         
         loss_current_batch = f_model_loss(X)
+        if any_invalid(loss_current_batch)
+            global g_state = (;f_model_loss, X)
+            throw(ErrorException("NaN encountered in loss"))
+        end
+
         push!(loss_history, loss_current_batch)
         grad_model_loss = pullback(one(Float32), f_model_loss, X)
         grad_model = grad_model_loss[1].inner
