@@ -2,6 +2,8 @@ using StructArrays
 using Random
 using CompositionsBase
 using Adapt
+using Base: Fix1
+using Base.Broadcast: BroadcastFunction
 
 using HDF5
 using Plots
@@ -44,6 +46,21 @@ function pullback(dy, f::ComposedFunction, x)
         ),
         x
     )
+end
+
+
+_pullback_for_bc(dy_tpl, args...) = pullback(dy_tpl[1], args...)
+
+function pullback(dY, bf::BroadcastFunction, Xs...)
+    # Require all inputs to have the same shape, to simplify things:
+    all(isequal(size(first(Xs))), map(size, Xs))
+
+    # Wrap dY in StructArray to generate StructArray result in broadcast:
+    dY_sa = StructArray((dY,))
+    tangents_sa = broadcast(_pullback_for_bc, dY_sa, bf.f, Xs...)
+    tangents = StructArrays.components(tangents_sa)
+
+    return (sum(first(tangents)), Base.tail(tangents)...)
 end
 
 
@@ -116,28 +133,6 @@ end
 
 
 
-struct BCFunc{F} <: Function
-    f::F
-end
-
-#@functor BCFunc
-
-(bf::BCFunc)(Xs...) = broadcast(bf.f, Xs...)
-
-_pullback_for_bc(dy_tpl, args...) = pullback(dy_tpl[1], args...)
-
-function pullback(dY, bf::BCFunc, Xs...)
-    # Require all inputs to have the same shape, to simplify things:
-    all(isequal(size(first(Xs))), map(size, Xs))
-
-    # Wrap dY in StructArray to generate StructArray result in broadcast:
-    dY_sa = StructArray((dY,))
-    tangents_sa = broadcast(_pullback_for_bc, dY_sa, bf.f, Xs...)
-    tangents = StructArrays.components(tangents_sa)
-
-    return (sum(first(tangents)), Base.tail(tangents)...)
-end
-
 
 
 
@@ -161,11 +156,11 @@ rng = Random.default_rng()
 
 model = opcompose(
     LinearLayer(rng, 18, 128),
-    BCFunc(relu),
+    BroadcastFunction(relu),
     LinearLayer(rng, 128, 128),
-    BCFunc(relu),
+    BroadcastFunction(relu),
     LinearLayer(rng, 128, 1),
-    BCFunc(logistic),
+    BroadcastFunction(logistic),
     vec
 )
 
