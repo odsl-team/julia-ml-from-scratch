@@ -178,7 +178,10 @@ dY = rand(Float32, size(Y)...)
 pullback(dY, model, X)
 
 
-xentropy(label::Bool, output::Real) = - log(ifelse(label, output, 1-output))
+xentropy(label::Bool, output::Real) = - log(ifelse(label, output, 1 - output))
+
+pullback(dy, ::typeof(xentropy), label, output) = NoTangent(), NoTangent(), - dy / ifelse(label, output, output - 1)
+
 
 #=
 using Distributions
