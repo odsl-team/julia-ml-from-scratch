@@ -311,6 +311,14 @@ optimizer = GradientDecent(1)
 apply_opt(optimizer, m, grad_model) isa typeof(m)
 
 
+any_hasnan(x::Nothing) = false
+any_hasnan(x::NoTangent) = false
+any_hasnan(x::Number) = isnan(x)
+any_hasnan(x::AbstractArray) = any(map(any_hasnan, x))
+any_hasnan(x::Tuple) = any(map(any_hasnan, x))
+any_hasnan(x::NamedTuple) = any(map(any_hasnan, values(x)))
+
+
 # Training the model
 
 m_trained = deepcopy(m)
@@ -337,6 +345,11 @@ for epoch in 1:n_epochs
         push!(loss_history, loss_current_batch)
         grad_model_loss = pullback(one(Float32), f_model_loss, X)
         grad_model = grad_model_loss[1].inner
+
+        if any_hasnan(grad_model)
+            global g_state = (;L, X, f_loss, f_model_loss)
+            error("NaN encountered in gradient!")
+        end
 
         m_trained = apply_opt(optimizer, m_trained, grad_model)
 
