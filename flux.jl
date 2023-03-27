@@ -9,7 +9,7 @@ import ProgressMeter
 rng = Random.default_rng()
 
 # Construct the layer
-model = Flux.Chain(
+flux_model = Flux.Chain(
     Flux.Dense(18, 128, Flux.relu),
     Flux.Dense(128, 128, Flux.relu),
     Flux.Dense(128, 1, Flux.sigmoid)
@@ -17,9 +17,9 @@ model = Flux.Chain(
 
 
 
-Flux.binarycrossentropy(model(X_train[:, 1:10000]), L_train[:,1:10000])
+Flux.binarycrossentropy(flux_model(X_train[:, 1:10000]), L_train[:,1:10000])
 
-optim = Flux.setup(Flux.Adam(), model)
+optim = Flux.setup(Flux.Adam(), flux_model)
 
 n_epochs = 4
 batchsize = 5000
@@ -30,14 +30,14 @@ loss_history = zeros(0)
 p = ProgressMeter.Progress(n_epochs * length(dataloader), 0.1, "Training...")
 for epoch in 1:n_epochs
     for (x, y) in dataloader
-        loss_train, grads = Flux.withgradient(model) do m
-            # Evaluate model and loss inside gradient context:
+        loss_train, grads = Flux.withgradient(flux_model) do m
+            # Evaluate flux_model and loss inside gradient context:
             y_hat = m(x)
             Flux.binarycrossentropy(y_hat, y)
         end
         push!(loss_history, loss_train)
         ProgressMeter.next!(p; showvalues = [(:loss_train, loss_train),#= (:loss_test, loss_test)=#])
-        Flux.update!(optim, model, grads[1])
+        Flux.update!(optim, flux_model, grads[1])
     end
 end
 ProgressMeter.finish!(p)
