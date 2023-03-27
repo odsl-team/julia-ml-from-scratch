@@ -177,8 +177,8 @@ pullback(dY, model, X)
 using CUDA
 GPUArray = CuArray
 
-using Metal
-GPUArray = MtlArray
+# using Metal
+# GPUArray = MtlArray
 
 gpu_model = adapt(GPUArray, model)
 typeof(gpu_model)
@@ -194,7 +194,7 @@ typeof(pullback(gpu_dY, gpu_model, gpu_X))
 @benchmark pullback($gpu_dY, $gpu_model, $gpu_X)
 
 gpu_features = adapt(GPUArray, features);
-Y = gpu_model(view(gpu_features, :, 1:50000));
+Y = model(view(features, :, 1:50000));
 gpu_Y = gpu_model(view(gpu_features, :, 1:50000));
 
 @benchmark $model(view($features, :, 1:50000))
