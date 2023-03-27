@@ -3,12 +3,19 @@ using Random
 using CompositionsBase
 using Adapt
 
+using HDF5
+using Plots
+
 using BenchmarkTools
 
 
+using HDF5
+input = h5open(joinpath(ENV["DATADIR"], "SUSY.hdf5"))
+
+features = copy(transpose(read(input["features"])))
+labels = read(input["labels"])
 
 #=
-using HDF5
 using Random
 # using LogExpFunctions, Distributions
 using Zygote, Optimisers
@@ -16,9 +23,6 @@ using ChainRulesCore
 using Base.Iterators: partition
 using Functors: @functor, functor, fmap
 using Plots, BenchmarkTools, ProgressMeter
-
-
-file = h5open("wfdata.h5")
 =#
 
 
@@ -193,9 +197,13 @@ typeof(pullback(gpu_dY, gpu_model, gpu_X))
 
 @benchmark pullback($dY, $model, $X)
 @benchmark pullback($gpu_dY, $gpu_model, $gpu_X)
+
+@benchmark $model(view($features, :, 1:50000))
+@benchmark $gpu_model(view($gpu_features, :, 1:50000))
+
+@benchmark sum(pullback($gpu_Y, $gpu_model, view($gpu_features, :, 1:50000))[2])
+@benchmark sum(pullback($Y, $model, view($features, :, 1:50000))[2])
 =#
-
-
 
 
 #stephist(Y, nbins = 100)
