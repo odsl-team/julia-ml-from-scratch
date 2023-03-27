@@ -199,10 +199,13 @@ dY = rand(Float32, size(Y)...)
 pullback(dY, model, X)
 
 
+force_nz(x::T) where {T<:Real} = ifelse(iszero(x), eps(T), x)
 
 # Cross-entroy loss definition
 
-xentropy(label::Bool, output::Real) = - log(ifelse(label, output, 1 - output))
+function xentropy(label::Bool, output::Real)
+    - log(force_nz(ifelse(label, output, 1 - output)))
+end
 
 #=
 using Distributions
@@ -210,8 +213,9 @@ xentropy(true, 0.3) ≈ - loglikelihood(Bernoulli(0.3), true)
 xentropy(false, 0.3) ≈ - loglikelihood(Bernoulli(0.3), false)
 =#
 
-pullback(dy, ::typeof(xentropy), label, output) = NoTangent(), NoTangent(), - dy / ifelse(label, output, output - 1)
-
+function pullback(dy, ::typeof(xentropy), label, output::Real)
+    NoTangent(), NoTangent(), - dy / force_nz(ifelse(label, output, output - 1))
+end
 
 f_xentroy_loss(labels) = mean ∘ Fix1(BroadcastFunction(xentropy), labels)
 
