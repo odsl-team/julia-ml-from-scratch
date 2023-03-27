@@ -307,32 +307,63 @@ ProgressMeter.finish!(p)
 plot(loss_history)
 
 
+function batched_eval(m, X::AbstractMatrix{<:Real}; batchsize::Integer = 50000)
+    Y = similar(X, size(m(X[:,1]))..., size(X, 2))
+    idxs = axes(X, 2)
+    partitions = partition(idxs, batchsize)
+    batch_idxs = first(partitions)
+    for batch_idxs in partitions
+        view(Y, :, batch_idxs) .= m(view(X, :, batch_idxs))
+    end
+    return Y
+end
+
+
+# Result analysis
+
+Y_train_v = Array(vec(batched_eval(m_trained, X_train)))
+
+Y_test_v = Array(vec(batched_eval(m_trained, X_test)))
+
+L_all_v = Array(vec(L_all))
+L_train_v = Array(vec(L_train))
+L_test_v = Array(vec(L_test))
+
+
+pred_sortidxs = sortperm(Y_test_v)
+pred_sorted = Y_test_v[pred_sortidxs]
+truth_sorted = L_test_v[pred_sortidxs]
+
+n_true_over_pred = reverse(cumsum(reverse(truth_sorted)))
+n_false_over_pred = reverse(cumsum(reverse(.!(truth_sorted))))
+n_total = length(truth_sum)
+n_true = first(truth_sum)
+n_false = first(n_false_over_pred)
+
+thresholds = 0.001:0.001:0.999
+found_thresh_ixds = searchsortedlast.(Ref(pred_sorted), thresholds)
+get_or_0(A, i::Integer) = get(A, i, zero(eltype(A)))
+TPR = [get_or_0(n_true_over_pred, i) / n_true for i in found_thresh_ixds]
+FPR = [get_or_0(n_false_over_pred, i) / n_false for i in found_thresh_ixds]
+plot(FPR, TPR)
 
 
 # =======================================================================
 
 # Evaluate trained model:
 
-Y = model(X)
-threshold = 0:0.01:1
-TPR = [count((Y .>= t) .&& L) / count(L) for t in threshold]
-FPR = [count((Y .>= t) .&& .! L) / count(L) for t in threshold]
-Y_thresh = Y .>= 0.5
 
 plot(
+    plot(loss_history, label = "Training evolution", xlabel = "batch", ylabel = "loss"),
     begin
-        stephist(L, nbins = 100, normalize = true, label = "Truth")
-        stephist!(model(X_train), nbins = 100, normalize = true, label = "Training pred.")
-        stephist!(model(X_test), nbins = 100, normalize = true, label = "Test pred.")
+        stephist(Y_test_v[findall(L_test_v)], nbins = 100, normalize = true, label = "Test pred. for true pos.", lw = 3)
+        stephist!(Y_test_v[findall(.! L_test_v)], nbins = 100, normalize = true, label = "Test pred. for true neg.", lw = 3)
+        stephist!(Y_train_v[findall(L_train_v)], nbins = 100, normalize = true, label = "Training pred. for true pos.", lw = 2)
+        stephist!(Y_train_v[findall(.! L_train_v)], nbins = 100, normalize = true, label = "Training pred. for true neg.", lw = 2)
     end,
     begin
-        plot(threshold, TPR, label = "TPR", color = :green, xlabel = "treshold")
-        plot!(threshold, FPR, label = "FPR", color = :red)
+        plot(thresholds, TPR, label = "TPR", color = :green, xlabel = "treshold", lw = 2)
+        plot!(thresholds, FPR, label = "FPR", color = :red, lw = 2)
     end,
-    plot(FPR, TPR, label = "ROC", xlabel = "FPR", ylabel = "TPR"),
-    begin
-        stephist(edep, nbins = 1500:5:1700, label = "all", xlabel = "E [keV]")
-        stephist!(edep[findall(L)], nbins = 1500:5:1700, label = "label SSE")
-        stephist!(edep[findall(Y_thresh)], nbins = 1500:5:1700, label = "model SSE")
-    end
+    plot(FPR, TPR, label = "ROC", xlabel = "FPR", ylabel = "TPR", lw = 2),
 )
