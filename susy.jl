@@ -182,6 +182,7 @@ xentropy(label::Bool, output::Real) = - log(ifelse(label, output, 1 - output))
 
 pullback(dy, ::typeof(xentropy), label, output) = NoTangent(), NoTangent(), - dy / ifelse(label, output, output - 1)
 
+f_xentroy_loss(labels::AbstractVector{Bool}) = mean ∘ Fix1(BroadcastFunction(xentropy), labels)
 
 #=
 using Distributions
@@ -213,15 +214,29 @@ typeof(pullback(gpu_dY, gpu_model, gpu_X))
 gpu_features = adapt(GPUArray, features);
 gpu_labels = adapt(GPUArray, labels);
 
+idxs = 1:50000
 
-Y = model(view(features, :, 1:50000));
-gpu_Y = gpu_model(view(gpu_features, :, 1:50000));
+Y = model(view(features, :, idxs));
+gpu_Y = gpu_model(view(gpu_features, :, idxs));
 
-@benchmark $model(view($features, :, 1:50000))
-@benchmark $gpu_model(view($gpu_features, :, 1:50000))
+@benchmark $model(view($features, :, idxs))
+@benchmark $gpu_model(view($gpu_features, :, idxs))
 
-@benchmark sum(pullback($Y, $model, view($features, :, 1:50000))[2])
-@benchmark sum(pullback($gpu_Y, $gpu_model, view($gpu_features, :, 1:50000))[2])
+@benchmark sum(pullback($Y, $model, view($features, :, idxs))[2])
+@benchmark sum(pullback($gpu_Y, $gpu_model, view($gpu_features, :, idxs))[2])
+
+f_loss = f_xentroy_loss(view(labels, idxs))
+gpu_f_loss = f_xentroy_loss(view(gpu_labels, idxs))
+
+(f_loss ∘ model)(view(features, :, idxs))
+(gpu_f_loss ∘ gpu_model)(view(gpu_features, :, idxs))
+
+typeof(pullback(one(Float32), f_loss ∘ model, view(features, :, idxs)))
+typeof(pullback(one(Float32), gpu_f_loss ∘ gpu_model, view(gpu_features, :, idxs)))
+
+@benchmark pullback(one(Float32), $f_loss ∘ $model, view($features, :, idxs))
+@benchmark pullback(one(Float32), $gpu_f_loss ∘ $gpu_model, view($gpu_features, :, idxs))
+
 =#
 
 
