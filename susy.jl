@@ -39,13 +39,13 @@ function pullback(dy, f::ComposedFunction, x)
     tmp = f.inner(x)
     d_outer, d_tmp = pullback(dy, f.outer, tmp)
     d_inner, dx = pullback(d_tmp, f.inner, x)
-    return (
-        (
-            outer = d_outer,
-            inner = d_inner
-        ),
-        x
-    )
+    return ((outer = d_outer, inner = d_inner), dx)
+end
+
+
+function pullback(dy, f::Fix1, x2)
+    dff, dfx, dx2 = pullback(dy, f.f, f.x, x2)
+    return ((f = dff, x = dfx), dx2)
 end
 
 
