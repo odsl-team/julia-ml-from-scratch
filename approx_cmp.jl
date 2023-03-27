@@ -30,8 +30,8 @@ is_no_tangent(x::Union{Tuple,AbstractArray}) = all(is_no_tangent, x)
 
 
 function test_pullback(f, xs...; kwargs...)
-    dummy_dy = f(x)
+    dummy_dy = f(xs...)
     dx = pullback(dummy_dy, f, xs...)
-    ref_dx = Zygote.pullback((f, x) -> f(x), f, xs...)[2](dummy_dy)
+    ref_dx = Zygote.pullback((f, xs...) -> f(xs...), f, xs...)[2](dummy_dy)
     approx_cmp(dx, ref_dx; kwargs...)
 end
