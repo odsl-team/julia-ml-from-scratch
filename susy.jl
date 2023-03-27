@@ -46,6 +46,17 @@ features = copy(transpose(read(input["features"])))
 labels = Bool.(transpose(read(input["labels"])))
 
 
+
+
+any_invalid(x::Nothing) = false
+any_invalid(x::NoTangent) = false
+any_invalid(x::Number) = isnan(x) || isinf(x)
+any_invalid(x::AbstractArray) = any(map(any_invalid, x))
+any_invalid(x::Tuple) = any(map(any_invalid, x))
+any_invalid(x::NamedTuple) = any(map(any_invalid, values(x)))
+
+
+
 # A simple automatic differentiation system
 
 struct NoTangent end
@@ -58,12 +69,12 @@ pullback(dy, ::typeof(*), a, b) = (NoTangent(), dy * b', a' * dy)
 function pullback(dy, f::ComposedFunction, x)
     tmp = f.inner(x)
     d_outer, d_tmp = pullback(dy, f.outer, tmp)
-    if any_hasnan((d_outer, d_tmp))
+    if any_invalid((d_outer, d_tmp))
         global g_state = (;dy = dy, f = f.outer, x = tmp)
         throw(ErrorException("NaN in pullback"))
     end
     d_inner, dx = pullback(d_tmp, f.inner, x)
-    if any_hasnan((d_inner, dx))
+    if any_invalid((d_inner, dx))
         global g_state = (;dy=d_tmp, f=f.inner, x=x)
         throw(ErrorException("NaN in pullback"))
     end
@@ -73,7 +84,7 @@ end
 
 function pullback(dy, f::Fix1, x2)
     dff, dfx, dx2 = pullback(dy, f.f, f.x, x2)
-    if any_hasnan(((f = dff, x = dfx), dx2))
+    if any_invalid(((f = dff, x = dfx), dx2))
         global g_state = (;dy, f, x2)
         throw(ErrorException("NaN in pullback"))
     end
@@ -92,8 +103,8 @@ function pullback(dY, bf::BroadcastFunction, Xs...)
     tangents_sa = broadcast(_pullback_for_bc, dY_sa, bf.f, Xs...)
     tangents = StructArrays.components(tangents_sa)
 
-    if any_hasnan((sum(first(tangents)), Base.tail(tangents)...))
-        global g_state = (;dy, bf, Xs)
+    if any_invalid((sum(first(tangents)), Base.tail(tangents)...))
+        global g_state = (;dY, bf, Xs)
         throw(ErrorException("NaN in pullback"))
     end
 
@@ -145,7 +156,7 @@ end
 function pullback(dy, f::LinearLayer, x)
     _, dA, dx = pullback(dy, *, f.A, x)
     db = vec(sum(dy, dims = 2))
-    if any_hasnan((dA, db, dx))
+    if any_invalid((dA, db, dx))
         global g_state = (;dy, f, x)
         throw(ErrorException("NaN in pullback"))
     end
@@ -332,14 +343,6 @@ optimizer = GradientDecent(1)
 apply_opt(optimizer, m, grad_model) isa typeof(m)
 
 
-any_hasnan(x::Nothing) = false
-any_hasnan(x::NoTangent) = false
-any_hasnan(x::Number) = isnan(x)
-any_hasnan(x::AbstractArray) = any(map(any_hasnan, x))
-any_hasnan(x::Tuple) = any(map(any_hasnan, x))
-any_hasnan(x::NamedTuple) = any(map(any_hasnan, values(x)))
-
-
 # Training the model
 
 m_trained = deepcopy(m)
@@ -367,7 +370,7 @@ for epoch in 1:n_epochs
         grad_model_loss = pullback(one(Float32), f_model_loss, X)
         grad_model = grad_model_loss[1].inner
 
-        if any_hasnan(grad_model)
+        if any_invalid(grad_model)
             global g_state = (;L, X, f_loss, f_model_loss)
             throw(ErrorException("NaN encountered in gradient!"))
         end
