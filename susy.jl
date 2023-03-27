@@ -200,8 +200,8 @@ gpu_Y = gpu_model(view(gpu_features, :, 1:50000));
 @benchmark $model(view($features, :, 1:50000))
 @benchmark $gpu_model(view($gpu_features, :, 1:50000))
 
-@benchmark sum(pullback($gpu_Y, $gpu_model, view($gpu_features, :, 1:50000))[2])
 @benchmark sum(pullback($Y, $model, view($features, :, 1:50000))[2])
+@benchmark sum(pullback($gpu_Y, $gpu_model, view($gpu_features, :, 1:50000))[2])
 =#
 
 
