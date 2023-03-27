@@ -239,39 +239,13 @@ typeof(pullback(one(Float32), gpu_f_loss ∘ gpu_model, view(gpu_features, :, id
 =#
 
 #=
-# Only compare fields present in both a and b, they must share at least one field:
-function approx_cmp(a::T, b::U; kwargs...) where {T,U}
-    if isstructtype(T) && fieldcount(T) > 0
-        c = 0
-        for n in fieldnames(T)
-            if n in fieldnames(U)
-                c = approx_cmp(getfield(a, n), getfield(b, n), kwargs...)  ? c + 1 : 0
-            end
-        end
-        c > 0
-    else
-        isequal(a, b)
-    end
-end
-approx_cmp(a::Number, b::Number; kwargs...) = isapprox(a, b; kwargs...)
-approx_cmp(a::AbstractArray{<:Number}, b::AbstractArray{<:Number}; kwargs...) = isapprox(a, b; kwargs...)
-approx_cmp(a::AbstractArray, b::AbstractArray; kwargs...) = all(map((x, y) -> approx_cmp(x, y; kwargs...), a, b))
-approx_cmp(a::Tuple, b::Tuple; kwargs...) = all(map((x, y) -> approx_cmp(x, y; kwargs...), a, b))
-approx_cmp(a::NamedTuple{names}, b::NamedTuple{names}; kwargs...) where names = approx_cmp(values(a), values(b); kwargs...)
-approx_cmp(a::NamedTuple, b::NamedTuple; kwargs...) = false
-
-using Zygote
+include("approx_cmp.jl")
 
 idxs = 1:50000
 f_loss = f_xentroy_loss(view(labels, idxs))
 x = view(features, :, idxs)
-grad = pullback(one(Float32), f_loss ∘ model, x)
-zgrad = Zygote.gradient((f,x) -> f(x), f_loss ∘ model, x)
-
-f = model.inner; y = f(x)
-dx = pullback(y, f, x)
-zdx = Zygote.pullback((f,x) -> f(x), f, x)[2](y)
-approx_cmp(dx, zdx)
+@assert test_pullback(model, x)
+@assert test_pullback(f_loss ∘ model, x)
 =#
 
 
