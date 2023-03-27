@@ -133,7 +133,7 @@ end
 function pullback(dy, f::LinearLayer, x)
     _, dA, dx = pullback(dy, *, f.A, x)
     db = vec(sum(dy, dims = 2))
-    ((A = dA, b = db), x)
+    ((A = dA, b = db), dx)
 end
 
 
