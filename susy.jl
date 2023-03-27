@@ -58,13 +58,25 @@ pullback(dy, ::typeof(*), a, b) = (NoTangent(), dy * b', a' * dy)
 function pullback(dy, f::ComposedFunction, x)
     tmp = f.inner(x)
     d_outer, d_tmp = pullback(dy, f.outer, tmp)
+    if any_hasnan((d_outer, d_tmp))
+        global g_state = (;dy = dy, f = f.outer, x = tmp)
+        throw(ErrorException("NaN in pullback"))
+    end
     d_inner, dx = pullback(d_tmp, f.inner, x)
+    if any_hasnan((d_inner, dx))
+        global g_state = (;dy=d_tmp, f=f.inner, x=x)
+        throw(ErrorException("NaN in pullback"))
+    end
     return ((outer = d_outer, inner = d_inner), dx)
 end
 
 
 function pullback(dy, f::Fix1, x2)
     dff, dfx, dx2 = pullback(dy, f.f, f.x, x2)
+    if any_hasnan(((f = dff, x = dfx), dx2))
+        global g_state = (;dy, f, x2)
+        throw(ErrorException("NaN in pullback"))
+    end
     return ((f = dff, x = dfx), dx2)
 end
 
@@ -79,6 +91,11 @@ function pullback(dY, bf::BroadcastFunction, Xs...)
     dY_sa = StructArray((dY,))
     tangents_sa = broadcast(_pullback_for_bc, dY_sa, bf.f, Xs...)
     tangents = StructArrays.components(tangents_sa)
+
+    if any_hasnan((sum(first(tangents)), Base.tail(tangents)...))
+        global g_state = (;dy, bf, Xs)
+        throw(ErrorException("NaN in pullback"))
+    end
 
     return (sum(first(tangents)), Base.tail(tangents)...)
 end
@@ -128,6 +145,10 @@ end
 function pullback(dy, f::LinearLayer, x)
     _, dA, dx = pullback(dy, *, f.A, x)
     db = vec(sum(dy, dims = 2))
+    if any_hasnan((dA, db, dx))
+        global g_state = (;dy, f, x)
+        throw(ErrorException("NaN in pullback"))
+    end
     ((A = dA, b = db), dx)
 end
 
@@ -288,7 +309,7 @@ function apply_opt(opt::GradientDecent, x::Real, dx::Real)
     r = x - opt.rate * dx
     if isnan(r)
         global g_state = (;opt, x, dx)
-        error("NaN encountered in gradient descent!")
+        throw(ErrorException("NaN encountered in gradient descent!"))
     else
         return r
     end
@@ -298,7 +319,7 @@ function apply_opt(opt::GradientDecent, x::AbstractArray, dx::AbstractArray)
     r = x .- opt.rate .* dx
     if any(isnan, r)
         global g_state = (;opt, x, dx)
-        error("NaN encountered in gradient descent!")
+        throw(ErrorException("NaN encountered in gradient descent!"))
     else
         return r
     end
@@ -348,7 +369,7 @@ for epoch in 1:n_epochs
 
         if any_hasnan(grad_model)
             global g_state = (;L, X, f_loss, f_model_loss)
-            error("NaN encountered in gradient!")
+            throw(ErrorException("NaN encountered in gradient!"))
         end
 
         m_trained = apply_opt(optimizer, m_trained, grad_model)
