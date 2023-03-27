@@ -270,10 +270,9 @@ optimizer(m, grad_model) isa typeof(m)
 # Train model, using batches and learning rate schedule:
 
 m_trained = deepcopy(m)
-
 loss_history = zeros(0)
-for optimizer in GradientDecent.([0.1 #=, 0.025, 0.01, 0.0025, 0.001, 0.00025=#])
-    @showprogress for epoch in 1:5 #250
+for optimizer in GradientDecent.([0.01 #=, 0.025, 0.01, 0.0025, 0.001, 0.00025=#])
+    @showprogress for epoch in 1:1 #250
         shuffled_idxs = shuffle(rng, eachindex(L_train))
         partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
 
@@ -287,9 +286,13 @@ for optimizer in GradientDecent.([0.1 #=, 0.025, 0.01, 0.0025, 0.001, 0.00025=#]
             f_loss = f_xentroy_loss(L)
             f_model_loss = f_loss ∘ m_trained
             
-            push!(loss_history, f_model_loss(X))
+            loss_current_batch = f_model_loss(X)
+            push!(loss_history, loss_current_batch)
             grad_model_loss = pullback(one(Float32), f_model_loss, X)
             grad_model = grad_l[1].inner
+
+            @info loss_current_batch
+
             m_trained = optimizer(m_trained, grad_model)
         end
         #push!(loss_history, mean(batch_loss_history))
