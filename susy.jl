@@ -272,7 +272,7 @@ optimizer(m, grad_model) isa typeof(m)
 m_trained = deepcopy(m)
 
 n_epochs = 2
-batchsize = 5000
+batchsize = 50000
 optimizer = GradientDecent(0.1)
 
 loss_history = zeros(0)
