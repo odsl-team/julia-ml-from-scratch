@@ -46,6 +46,10 @@ features = copy(transpose(read(input["features"])))
 labels = Bool.(transpose(read(input["labels"])))
 
 
+# A simple automatic differentiation system
+
+struct NoTangent end
+Base.sum(::AbstractArray{<:NoTangent}) = NoTangent()
 
 
 any_invalid(x::Nothing) = false
@@ -54,13 +58,6 @@ any_invalid(x::Number) = isnan(x) || isinf(x)
 any_invalid(x::AbstractArray) = any(map(any_invalid, x))
 any_invalid(x::Tuple) = any(map(any_invalid, x))
 any_invalid(x::NamedTuple) = any(map(any_invalid, values(x)))
-
-
-
-# A simple automatic differentiation system
-
-struct NoTangent end
-Base.sum(::AbstractArray{<:NoTangent}) = NoTangent()
 
 
 pullback(dy, ::typeof(*), a, b) = (NoTangent(), dy * b', a' * dy)
