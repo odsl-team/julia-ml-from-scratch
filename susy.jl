@@ -21,14 +21,8 @@ input = h5open(joinpath(ENV["DATADIR"], "SUSY.hdf5"))
 features = copy(transpose(read(input["features"])))
 labels = Bool.(transpose(read(input["labels"])))
 
-#=
-using Random
-# using LogExpFunctions, Distributions
-using ChainRulesCore
-using Functors: @functor, functor, fmap
-using Plots, BenchmarkTools, ProgressMeter
-=#
 
+# A simple automatic differentiation system
 
 struct NoTangent end
 Base.sum(::AbstractArray{<:NoTangent}) = NoTangent()
@@ -73,7 +67,7 @@ pullback(dy, ::typeof(sum), x) = NoTangent(), fill!(similar(x), dy)
 pullback(dy, ::typeof(mean), x) = NoTangent(), fill!(similar(x), dy / length(x))
 
 
-
+# Utility to log calls to functions
 
 struct LogCalls{F} <: Function
     f::F
@@ -93,6 +87,7 @@ end
 
 
 
+# A linear NN layer, A * x + b
 
 struct LinearLayer{
     MA<:AbstractMatrix{<:Real},
@@ -141,6 +136,8 @@ end
 
 
 
+# Activation functions
+
 relu(x::Real) = max(zero(x), x)
 
 pullback(dy, ::typeof(relu), x) = NoTangent(), ifelse(x > 0, dy, zero(dy))
@@ -154,8 +151,7 @@ function pullback(dy, ::typeof(logistic), x)
 end
 
 
-
-
+# Model definition
 
 rng = Random.default_rng()
 
@@ -179,6 +175,9 @@ dY = rand(Float32, size(Y)...)
 pullback(dY, model, X)
 
 
+
+# Cross-entroy loss definition
+
 xentropy(label::Bool, output::Real) = - log(ifelse(label, output, 1 - output))
 
 #=
@@ -187,7 +186,6 @@ xentropy(true, 0.3) ≈ - loglikelihood(Bernoulli(0.3), true)
 xentropy(false, 0.3) ≈ - loglikelihood(Bernoulli(0.3), false)
 =#
 
-
 pullback(dy, ::typeof(xentropy), label, output) = NoTangent(), NoTangent(), - dy / ifelse(label, output, output - 1)
 
 
@@ -195,7 +193,7 @@ f_xentroy_loss(labels) = mean ∘ Fix1(BroadcastFunction(xentropy), labels)
 
 
 
-# Split dataset:
+# Split dataset into train and test
 
 idxs_total = eachindex(labels)
 n_total = length(idxs_total)
@@ -223,7 +221,7 @@ X_train = view(X_all, : ,idxs_train)
 X_test = view(X_all, :, idxs_test)
 
 
-# Manual batch evaluation
+# Manual evaluation of a single batch
 
 batchsize = 50000
 shuffled_idxs = shuffle(rng, eachindex(L_train))
@@ -248,7 +246,7 @@ f_model_loss.inner == m
 grad_model = grad_model_loss[1].inner
 
 
-# Define gradient descent optimizer:
+# A simple gradient descent optimizer with fixed learning rate
 
 struct GradientDecent{T}
     rate::T
@@ -270,7 +268,8 @@ optimizer = GradientDecent(1)
 optimizer(m, grad_model) isa typeof(m)
 
 
-# Train model, using batches and learning rate schedule:
+# Training the model
+
 m_trained = deepcopy(m)
 
 n_epochs = 3
@@ -309,6 +308,8 @@ ProgressMeter.finish!(p)
 plot(loss_history)
 
 
+# Need to run over large dataset in batches that fit into GPU memory
+
 function batched_eval(m, X::AbstractMatrix{<:Real}; batchsize::Integer = 50000)
     Y = similar(X, size(m(X[:,1]))..., size(X, 2))
     idxs = axes(X, 2)
@@ -321,7 +322,7 @@ function batched_eval(m, X::AbstractMatrix{<:Real}; batchsize::Integer = 50000)
 end
 
 
-# Result analysis
+# Analyse trained model
 
 Y_train_v = Array(vec(batched_eval(m_trained, X_train)))
 
@@ -352,7 +353,8 @@ FPR = [get_or_0(n_false_over_pred, i) / n_false for i in found_thresh_ixds]
 plot(
     plot(loss_history, label = "Training evolution", xlabel = "batch", ylabel = "loss"),
     begin
-        stephist(Y_test_v[findall(L_test_v)], nbins = 100, normalize = true, label = "Test pred. for true pos.", lw = 3)
+        plot(xlabel = "model output")
+        stephist!(Y_test_v[findall(L_test_v)], nbins = 100, normalize = true, label = "Test pred. for true pos.", lw = 3),
         stephist!(Y_test_v[findall(.! L_test_v)], nbins = 100, normalize = true, label = "Test pred. for true neg.", lw = 3)
         stephist!(Y_train_v[findall(L_train_v)], nbins = 100, normalize = true, label = "Training pred. for true pos.", lw = 2)
         stephist!(Y_train_v[findall(.! L_train_v)], nbins = 100, normalize = true, label = "Training pred. for true neg.", lw = 2)
