@@ -16,7 +16,31 @@ using Plots
 import ProgressMeter
 
 using HDF5
-input = h5open(joinpath(ENV["DATADIR"], "SUSY.hdf5"))
+
+
+datadir = get(ENV, "DATADIR", pwd())
+compute_backend = get(ENV, "COMPUTE_BACKEND", "CPU")
+
+
+maybe_copy(A::AbstractArray) = A
+
+if compute_backend == "CPU"
+    ArrayType = Array
+elseif compute_backend == "CUDA"
+    using CUDA
+    ArrayType = CuArray
+elseif compute_backend == "METAL"
+    using Metal
+    ArrayType = MtlArray
+
+    # See https://github.com/JuliaGPU/Metal.jl/issues/149:
+    maybe_copy(A::SubArray{<:Real, N, <:MtlArray}) where N = copy(A)
+else
+    error("Unsupported compute backend: $compute_backend")
+end
+
+
+input = h5open(joinpath(datadir, "SUSY.hdf5"))
 
 features = copy(transpose(read(input["features"])))
 labels = Bool.(transpose(read(input["labels"])))
@@ -201,24 +225,15 @@ n_train = round(Int, 0.7 * n_total)
 idxs_train = 1:n_train
 idxs_test = n_train+1:n_total
 
-#ArrayType = Array
-
-using CUDA
-ArrayType = CuArray
-
-#=
-using Metal
-ArrayType = MtlArray
-=#
 
 m = adapt(ArrayType, model)
 X_all = adapt(ArrayType, features)
 L_all = adapt(ArrayType, labels)
 
-L_train = view(L_all, :, idxs_train)
-L_test = view(L_all, :, idxs_test)
-X_train = view(X_all, : ,idxs_train)
-X_test = view(X_all, :, idxs_test)
+L_train = maybe_copy(view(L_all, :, idxs_train))
+L_test = maybe_copy(view(L_all, :, idxs_test))
+X_train = maybe_copy(view(X_all, : ,idxs_train))
+X_test = maybe_copy(view(X_all, :, idxs_test))
 
 
 # Manual evaluation of a single batch
