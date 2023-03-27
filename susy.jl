@@ -263,24 +263,26 @@ grad_model = grad_model_loss[1].inner
 
 # A simple gradient descent optimizer with fixed learning rate
 
-struct GradientDecent{T}
+abstract type Optimizer end
+
+struct GradientDecent{T} <: Optimizer
     rate::T
 end
 
-(opt::GradientDecent)(x, ::Nothing) = x
-(opt::GradientDecent)(x::Real, dx::Real) = x - opt.rate * dx
-(opt::GradientDecent)(x::AbstractArray, dx::AbstractArray) = x .- opt.rate .* dx
-function (opt::GradientDecent)(x, dx)
+apply_opt(opt::GradientDecent, x, ::Nothing) = x
+apply_opt(opt::GradientDecent, x::Real, dx::Real) = x - opt.rate * dx
+apply_opt(opt::GradientDecent, x::AbstractArray, dx::AbstractArray) = x .- opt.rate .* dx
+function apply_opt(opt::GradientDecent, x, dx)
     content_x, re = functor(x)
     content_dx, _ = functor(dx)
-    re(map(opt, content_x, content_dx))
+    re(map((x, dx) -> apply_opt(opt, x, dx), content_x, content_dx))
 end
 
 
 optimizer = GradientDecent(1)
 # optimizer = ADAM(1e-4)
 
-optimizer(m, grad_model) isa typeof(m)
+apply_opt(optimizer, m, grad_model) isa typeof(m)
 
 
 # Training the model
@@ -298,9 +300,6 @@ for epoch in 1:n_epochs
     shuffled_idxs = shuffle(rng, axes(L_train, 2))
     partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
 
-    idxs = first(partitions)
-    
-    batch_loss_history = zeros(0)
     for idxs in partitions
         L = L_train[:, idxs]
         X = X_train[:, idxs]
@@ -313,13 +312,13 @@ for epoch in 1:n_epochs
         grad_model_loss = pullback(one(Float32), f_model_loss, X)
         grad_model = grad_model_loss[1].inner
 
-        m_trained = optimizer(m_trained, grad_model)
+        m_trained = apply_opt(optimizer, m_trained, grad_model)
 
-        ProgressMeter.next!(p; showvalues = [(:loss_train, loss_current_batch),#= (:loss_test, loss_test)=#])
+        ProgressMeter.next!(p; showvalues = [(:loss_current_batch, loss_current_batch),#= (:loss_test, loss_test)=#])
     end
-    #push!(loss_history, mean(batch_loss_history))
 end
 ProgressMeter.finish!(p)
+
 plot(loss_history)
 
 
