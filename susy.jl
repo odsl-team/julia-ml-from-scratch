@@ -1,5 +1,5 @@
+using LinearAlgebra, Statistics, Random
 using StructArrays
-using Random
 using CompositionsBase
 using Adapt
 using Base: Fix1
@@ -15,7 +15,7 @@ using HDF5
 input = h5open(joinpath(ENV["DATADIR"], "SUSY.hdf5"))
 
 features = copy(transpose(read(input["features"])))
-labels = read(input["labels"])
+labels = Bool.(read(input["labels"]))
 
 #=
 using Random
@@ -65,6 +65,11 @@ end
 
 
 pullback(dy, ::typeof(vec), x) = NoTangent(), reshape(dy, size(x)...)
+
+
+pullback(dy, ::typeof(sum), x) = NoTangent(), fill!(similar(x), dy)
+pullback(dy, ::typeof(mean), x) = NoTangent(), fill!(similar(x), dy / length(x))
+
 
 
 
@@ -173,6 +178,15 @@ dY = rand(Float32, size(Y)...)
 pullback(dY, model, X)
 
 
+xentropy(label::Bool, output::Real) = - log(ifelse(label, output, 1-output))
+
+#=
+using Distributions
+xentropy(true, 0.3) ≈ - loglikelihood(Bernoulli(0.3), true)
+xentropy(false, 0.3) ≈ - loglikelihood(Bernoulli(0.3), false)
+=#
+
+
 #=
 using CUDA
 GPUArray = CuArray
@@ -194,6 +208,9 @@ typeof(pullback(gpu_dY, gpu_model, gpu_X))
 @benchmark pullback($gpu_dY, $gpu_model, $gpu_X)
 
 gpu_features = adapt(GPUArray, features);
+gpu_labels = adapt(GPUArray, labels);
+
+
 Y = model(view(features, :, 1:50000));
 gpu_Y = gpu_model(view(gpu_features, :, 1:50000));
 
@@ -210,14 +227,6 @@ gpu_Y = gpu_model(view(gpu_features, :, 1:50000));
 
 # Define loss:
 
-xentropy(label::Bool, output::Real) = - log(ifelse(label, output, 1-output))
-
-
-#=
-using Distributions
-xentropy(true, 0.3) ≈ - loglikelihood(Bernoulli(0.3), true)
-xentropy(false, 0.3) ≈ - loglikelihood(Bernoulli(0.3), false)
-=#
 
 current_loss = Base.Fix1(xentropy, L)
 
