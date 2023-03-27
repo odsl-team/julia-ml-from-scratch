@@ -269,17 +269,39 @@ grad_model = grad_model_loss[1].inner
 
 abstract type Optimizer end
 
+apply_opt(opt::Optimizer, x, ::Nothing) = x
+
+function apply_opt(opt::Optimizer, x, dx)
+    content_x, re = functor(x)
+    content_dx, _ = functor(dx)
+    re(map((x, dx) -> apply_opt(opt, x, dx), content_x, content_dx))
+end
+
+
 struct GradientDecent{T} <: Optimizer
     rate::T
 end
 
-apply_opt(opt::GradientDecent, x, ::Nothing) = x
-apply_opt(opt::GradientDecent, x::Real, dx::Real) = x - opt.rate * dx
-apply_opt(opt::GradientDecent, x::AbstractArray, dx::AbstractArray) = x .- opt.rate .* dx
-function apply_opt(opt::GradientDecent, x, dx)
-    content_x, re = functor(x)
-    content_dx, _ = functor(dx)
-    re(map((x, dx) -> apply_opt(opt, x, dx), content_x, content_dx))
+g_state = Nothing
+
+function apply_opt(opt::GradientDecent, x::Real, dx::Real)
+    r = x - opt.rate * dx
+    if isnan(r)
+        global g_state = (;opt, x, dx)
+        error("NaN encountered in gradient descent!")
+    else
+        return r
+    end
+end
+
+function apply_opt(opt::GradientDecent, x::AbstractArray, dx::AbstractArray)
+    r = x .- opt.rate .* dx
+    if any(isnan, r)
+        global g_state = (;opt, x, dx)
+        error("NaN encountered in gradient descent!")
+    else
+        return r
+    end
 end
 
 
@@ -295,7 +317,7 @@ m_trained = deepcopy(m)
 
 n_epochs = 3
 batchsize = 50000
-optimizer = GradientDecent(0.1)
+optimizer = GradientDecent(Float32(0.1))
 
 loss_history = zeros(0)
 n_batches = length(partition(axes(L_train, 2), batchsize))
