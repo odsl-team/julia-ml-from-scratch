@@ -1,11 +1,14 @@
 # This file is licensed under the MIT License (MIT).
 
 using LinearAlgebra, Statistics, Random
+
+using Base: Fix1
+using Base.Broadcast: BroadcastFunction
+using Base.Iterators: partition
+
 using StructArrays
 using CompositionsBase
 using Adapt
-using Base: Fix1
-using Base.Broadcast: BroadcastFunction
 using Plots
 
 using HDF5
@@ -18,7 +21,6 @@ labels = Bool.(read(input["labels"]))
 using Random
 # using LogExpFunctions, Distributions
 using ChainRulesCore
-using Base.Iterators: partition
 using Functors: @functor, functor, fmap
 using Plots, BenchmarkTools, ProgressMeter
 =#
@@ -186,33 +188,59 @@ f_xentroy_loss(labels::AbstractVector{Bool}) = mean ∘ Fix1(BroadcastFunction(x
 
 
 
+# Split dataset:
+
+idxs_total = eachindex(labels)
+n_total = length(idxs_total)
+n_train = round(Int, 0.7 * n_total)
+idxs_train = 1:n_train
+idxs_test = n_train+1:n_total
+
+#ArrayType = Array
+
+using CUDA
+ArrayType = CuArray
+
+#=
+using Metal
+ArrayType = MtlArray
+=#
+
+m = adapt(ArrayType, model)
+X_all = adapt(ArrayType, features)
+L_all = adapt(ArrayType, labels)
+
+L_train = view(L_all, idxs_train)
+L_test = view(L_all, idxs_test)
+X_train = view(X_all, : ,idxs_train)
+X_test = view(X_all, :, idxs_test)
+
+
+batchsize = 50000
+shuffled_idxs = shuffle(rng, eachindex(L_train))
+partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
+idxs = first(partitions)
+L = L_train[idxs]
+X = X_train[:, idxs]
+
+f_loss = f_xentroy_loss(L)
+model_loss = f_loss ∘ m
+
+l = model_loss(X)
+grad_l = pullback(one(Float32), model_loss, X)
+
+
+#=
+@benchmark $model_loss($X)
+@benchmark pullback(one(Float32), $model_loss, $X)
+=#
+
+
 # =========================================================================================
 # =========================================================================================
 
-#stephist(Y, nbins = 100)
 
 
-# Define loss:
-
-
-current_loss = Base.Fix1(xentropy, L)
-
-# cross-entropy is equivalent to negative mean likelihood:
-loss(Y) ≈ mean(.- logpdf.(Bernoulli.(vec(Y)), L))
-
-
-# Gradient calculation:
-
-grad_model(model, loss, X) = Zygote.gradient((m,x) -> loss(m(x)), model, X)[1]
-
-function loss_grad_model(model, loss, X)
-    l, pullback = Zygote.pullback((m,x) -> loss(m(x)), model, X)
-    d_model = pullback(one(l))[1]
-    return l, d_model
-end
-
-grad_model(model, loss, X)
-loss_grad_model(model, loss, X)
 
 
 # Define gradient descent optimizer:
@@ -231,34 +259,16 @@ function (opt::GradientDecent)(x, dx)
 end
 
 
+
+fist(partition(shuffle(rng, idxs_train)))
+
+
 optimizer = GradientDecent(1)
-# optimizer = Adam(1e-4)
+# optimizer = ADAM(1e-4)
 
 optimizer(model, grad_model(model, loss, X)) isa typeof(model)
 
 
-# Split dataset:
-
-L_train = L[begin:10000]
-L_test = L[10001:end]
-X_train = X[:,begin:10000]
-X_test = X[:,10001:end]
-
-
-# Train model, unbatched:
-
-orig_model = deepcopy(model)
-
-model = deepcopy(orig_model)
-loss_train = Base.Fix1(xentropy, L_train)
-loss_history = zeros(0)
-optimizer = GradientDecent(0.025)
-@showprogress for i in 1:1000
-    l, d_model = loss_grad_model(model, loss_train, X_train)
-    push!(loss_history, l)
-    model = optimizer(model, d_model)
-end
-plot(loss_history)
 
 
 # Train model, using batches and learning rate schedule:
