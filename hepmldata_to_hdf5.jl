@@ -10,10 +10,10 @@ output_filename = replace(input_filename, r"\.csv\.gz$" => "")*".hdf5"
 
 @time A = Tables.matrix(CSV.File(input_filename; header=false, buffer_in_memory=true, types=Float32))
 
-tags = Int32.(A[:, begin])
+labels = Int32.(A[:, begin])
 features = A[:, begin+1:end]
 
 HDF5.h5open(output_filename, "w") do output
-    output["tags"] = tags
+    output["labels"] = labels
     output["features"] = features
 end
