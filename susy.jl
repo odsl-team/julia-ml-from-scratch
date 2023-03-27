@@ -269,43 +269,47 @@ optimizer(m, grad_model) isa typeof(m)
 
 
 # Train model, using batches and learning rate schedule:
-n_epochs = 1
-
 m_trained = deepcopy(m)
+
+n_epochs = 2
+batchsize = 5000
+optimizer = GradientDecent(0.1)
+
 loss_history = zeros(0)
-for optimizer in GradientDecent.([0.01 #=, 0.025, 0.01, 0.0025, 0.001, 0.00025=#])
-    n_batches = length(partition(axes(L_train, 2), batchsize))
-    p = ProgressMeter.Progress(n_epochs * n_batches, 0.1, "Training...")
-    for epoch in 1:n_epochs
-        shuffled_idxs = shuffle(rng, axes(L_train, 2))
-        partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
+n_batches = length(partition(axes(L_train, 2), batchsize))
+p = ProgressMeter.Progress(n_epochs * n_batches, 0.1, "Training...")
+for epoch in 1:n_epochs
+    shuffled_idxs = shuffle(rng, axes(L_train, 2))
+    partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
 
-        idxs = first(partitions)
+    idxs = first(partitions)
+    
+    batch_loss_history = zeros(0)
+    for idxs in partitions
+        L = L_train[:, idxs]
+        X = X_train[:, idxs]
+
+        f_loss = f_xentroy_loss(L)
+        f_model_loss = f_loss ∘ m_trained
         
-        batch_loss_history = zeros(0)
-        for idxs in partitions
-            L = L_train[:, idxs]
-            X = X_train[:, idxs]
+        loss_current_batch = f_model_loss(X)
+        push!(loss_history, loss_current_batch)
+        grad_model_loss = pullback(one(Float32), f_model_loss, X)
+        grad_model = grad_model_loss[1].inner
 
-            f_loss = f_xentroy_loss(L)
-            f_model_loss = f_loss ∘ m_trained
-            
-            loss_current_batch = f_model_loss(X)
-            push!(loss_history, loss_current_batch)
-            grad_model_loss = pullback(one(Float32), f_model_loss, X)
-            grad_model = grad_model_loss[1].inner
+        m_trained = optimizer(m_trained, grad_model)
 
-            m_trained = optimizer(m_trained, grad_model)
-
-            ProgressMeter.next!(p; showvalues = [(:loss_train, loss_current_batch),#= (:loss_test, loss_test)=#])
-        end
-        #push!(loss_history, mean(batch_loss_history))
+        ProgressMeter.next!(p; showvalues = [(:loss_train, loss_current_batch),#= (:loss_test, loss_test)=#])
     end
+    #push!(loss_history, mean(batch_loss_history))
 end
 ProgressMeter.finish!(p)
-
 plot(loss_history)
 
+
+
+
+# =======================================================================
 
 # Evaluate trained model:
 
@@ -332,20 +336,3 @@ plot(
         stephist!(edep[findall(Y_thresh)], nbins = 1500:5:1700, label = "model SSE")
     end
 )
-
-
-#=
-# Running on a GPU:
-
-using CUDA
-gpu_model = fmap(cu, model)
-cu_loss = fmap(cu, loss)
-gpu_X = cu(X)
-
-grad_model(gpu_model, cu_loss, gpu_X)
-loss_grad_model(gpu_model, cu_loss, gpu_X)
-optimizer(gpu_model, grad_model(gpu_model, cu_loss, gpu_X))
-
-@benchmark loss_grad_model($model, $loss, $X)
-@benchmark loss_grad_model($gpu_model, $cu_loss, $gpu_X)
-=#
