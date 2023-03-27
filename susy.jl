@@ -164,6 +164,8 @@ model = opcompose(
     BroadcastFunction(relu),
     LinearLayer(rng, 128, 128),
     BroadcastFunction(relu),
+    LinearLayer(rng, 128, 128),
+    BroadcastFunction(relu),
     LinearLayer(rng, 128, 1),
     BroadcastFunction(logistic)
 )
@@ -271,7 +273,7 @@ optimizer(m, grad_model) isa typeof(m)
 # Train model, using batches and learning rate schedule:
 m_trained = deepcopy(m)
 
-n_epochs = 2
+n_epochs = 3
 batchsize = 50000
 optimizer = GradientDecent(0.1)
 
@@ -336,8 +338,8 @@ truth_sorted = L_test_v[pred_sortidxs]
 
 n_true_over_pred = reverse(cumsum(reverse(truth_sorted)))
 n_false_over_pred = reverse(cumsum(reverse(.!(truth_sorted))))
-n_total = length(truth_sum)
-n_true = first(truth_sum)
+n_total = length(truth_sorted)
+n_true = first(n_true_over_pred)
 n_false = first(n_false_over_pred)
 
 thresholds = 0.001:0.001:0.999
@@ -345,12 +347,6 @@ found_thresh_ixds = searchsortedlast.(Ref(pred_sorted), thresholds)
 get_or_0(A, i::Integer) = get(A, i, zero(eltype(A)))
 TPR = [get_or_0(n_true_over_pred, i) / n_true for i in found_thresh_ixds]
 FPR = [get_or_0(n_false_over_pred, i) / n_false for i in found_thresh_ixds]
-plot(FPR, TPR)
-
-
-# =======================================================================
-
-# Evaluate trained model:
 
 
 plot(
