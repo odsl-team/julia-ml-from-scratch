@@ -9,6 +9,9 @@ using Base.Iterators: partition
 using StructArrays
 using CompositionsBase
 using Adapt
+
+using Functors: @functor, functor, fmap
+
 using Plots
 
 using HDF5
@@ -75,6 +78,8 @@ struct LogCalls{F} <: Function
     f::F
 end
 
+@functor LogCalls
+
 function (lf::LogCalls)(xs...)
     @info "primal $(lf.f)"
     lf.f(xs...)
@@ -96,7 +101,7 @@ struct LinearLayer{
     b::VB
 end
 
-# @functor LinearLayer
+@functor LinearLayer
 
 (f::LinearLayer)(x::AbstractVecOrMat{<:Real}) = f.A * x .+ f.b
 
@@ -216,6 +221,8 @@ X_train = view(X_all, : ,idxs_train)
 X_test = view(X_all, :, idxs_test)
 
 
+# Manual batch evaluation
+
 batchsize = 50000
 shuffled_idxs = shuffle(rng, eachindex(L_train))
 partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
@@ -224,23 +231,18 @@ L = L_train[idxs]
 X = X_train[:, idxs]
 
 f_loss = f_xentroy_loss(L)
-model_loss = f_loss ∘ m
+f_model_loss = f_loss ∘ m
 
-l = model_loss(X)
-grad_l = pullback(one(Float32), model_loss, X)
-
+l = f_model_loss(X)
+grad_model_loss = pullback(one(Float32), f_model_loss, X)
 
 #=
-@benchmark $model_loss($X)
-@benchmark pullback(one(Float32), $model_loss, $X)
+@benchmark $f_model_loss($X)
+@benchmark pullback(one(Float32), $f_model_loss, $X)
 =#
 
-
-# =========================================================================================
-# =========================================================================================
-
-
-
+model_loss.inner == m
+grad_model = grad_l[1].inner
 
 
 # Define gradient descent optimizer:
@@ -259,40 +261,41 @@ function (opt::GradientDecent)(x, dx)
 end
 
 
-
-fist(partition(shuffle(rng, idxs_train)))
-
-
 optimizer = GradientDecent(1)
 # optimizer = ADAM(1e-4)
 
-optimizer(model, grad_model(model, loss, X)) isa typeof(model)
-
-
+optimizer(m, grad_model) isa typeof(m)
 
 
 # Train model, using batches and learning rate schedule:
 
-model = deepcopy(orig_model)
+m_trained = deepcopy(m)
+
 loss_history = zeros(0)
-for optimizer in GradientDecent.([0.1, 0.025, 0.01, 0.0025, 0.001, 0.00025])
-        @showprogress for i in 1:250
-        perm = shuffle(eachindex(L_train))
-        shuffled_X = X_train[:, perm]
-        shuffled_L = L_train[perm]
-        batchsize = 200
+for optimizer in GradientDecent.([0.1 #=, 0.025, 0.01, 0.0025, 0.001, 0.00025=#])
+    @showprogress for epoch in 1:5 #250
+        shuffled_idxs = shuffle(rng, eachindex(L_train))
+        partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
+
+        idxs = first(partitions)
+        
         batch_loss_history = zeros(0)
-        for idxs in partition(eachindex(shuffled_L), batchsize)
-            X_batch = view(shuffled_X, :, idxs)
-            L_batch = view(shuffled_L, idxs)
-            loss_batch = Base.Fix1(xentropy, L_batch)
-            l, d_model = loss_grad_model(model, loss_batch, X_batch)
-            push!(batch_loss_history, l)
-            model = optimizer(model, d_model)
+        for idxs in partitions
+            L = L_train[idxs]
+            X = X_train[:, idxs]
+
+            f_loss = f_xentroy_loss(L)
+            f_model_loss = f_loss ∘ m_trained
+            
+            push!(loss_history, f_model_loss(X))
+            grad_model_loss = pullback(one(Float32), f_model_loss, X)
+            grad_model = grad_l[1].inner
+            m_trained = optimizer(m_trained, grad_model)
         end
-        push!(loss_history, mean(batch_loss_history))
+        #push!(loss_history, mean(batch_loss_history))
     end
 end
+
 plot(loss_history)
 
 
