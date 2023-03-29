@@ -452,7 +452,6 @@ function batched_eval(m, X::AbstractMatrix{<:Real}; batchsize::Integer = 50000)
     Y = similar(X, size(m(X[:,1]))..., size(X, 2))
     idxs = axes(X, 2)
     partitions = partition(idxs, batchsize)
-    batch_idxs = first(partitions)
     for batch_idxs in partitions
         view(Y, :, batch_idxs) .= m(view(X, :, batch_idxs))
     end
