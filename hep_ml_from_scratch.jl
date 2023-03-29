@@ -197,7 +197,7 @@ end
 function glorot_normal!(rng::AbstractRNG, A::AbstractMatrix{T}, gain::Real = one(T)) where {T<:Real}
     fan_in_plus_fan_out = sum(size(A))
     scale = sqrt(T(2) / fan_in_plus_fan_out)
-    rand!(rng, A)
+    randn!(rng, A)
     A .= gain .* scale .* A
     return A
 end
