@@ -363,9 +363,9 @@ grad_model = grad_model_loss[1].inner
 abstract type AbstractOptimizer end
 
 apply_opt(::AbstractOptimizer, x, ::Union{NoTangent, Nothing}) = x
-apply_opt(opt::AbstractOptimizer, x::NTuple{N}, Δx::NTuple{N}) where N = map((xi, dxi) -> apply_opt(opt, xi, dxi), x, Δx)
-apply_opt(opt::AbstractOptimizer, x::NamedTuple{names}, Δx::NamedTuple{names}) where names = map((xi, dxi) -> apply_opt(opt, xi, dxi), x, Δx)
-apply_opt(opt::AbstractOptimizer, x::T, Δx) where T = constructorof(T)(values(apply_opt(opt, getfields(x), Δx))...)
+apply_opt(opt::AbstractOptimizer, x::NTuple{N}, δx::NTuple{N}) where N = map((xi, dxi) -> apply_opt(opt, xi, dxi), x, δx)
+apply_opt(opt::AbstractOptimizer, x::NamedTuple{names}, δx::NamedTuple{names}) where names = map((xi, dxi) -> apply_opt(opt, xi, dxi), x, δx)
+apply_opt(opt::AbstractOptimizer, x::T, δx) where T = constructorof(T)(values(apply_opt(opt, getfields(x), δx))...)
 
 
 # A simple gradient decent optimizer with fixed learning rate:
@@ -374,10 +374,10 @@ struct GradientDecent{T} <: AbstractOptimizer
     rate::T
 end
 
-apply_opt(opt::GradientDecent, x::T, Δx::Number) where {T<:Number} = x - T(opt.rate) * Δx
+apply_opt(opt::GradientDecent, x::T, δx::Number) where {T<:Number} = x - T(opt.rate) * δx
 
-function apply_opt(opt::GradientDecent, x::AbstractArray{T}, Δx::AbstractArray{<:Number}) where {T<:Number}
-    x .- T(opt.rate) .* Δx
+function apply_opt(opt::GradientDecent, x::AbstractArray{T}, δx::AbstractArray{<:Number}) where {T<:Number}
+    x .- T(opt.rate) .* δx
 end
 
 
