@@ -1,0 +1,13 @@
+.DS_Store
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+.ipynb_checkpoints
+.vscode
+
+*.h5
+*.hdf5
+*.jpg
+*.pdf
+*.png
+*.ipynb
