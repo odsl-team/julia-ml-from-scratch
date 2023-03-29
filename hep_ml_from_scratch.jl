@@ -11,6 +11,9 @@
 # Check that the right Julia project environment is active:
 
 using Pkg
+Pkg.activate(@__DIR__)
+#Need to run this only once:
+#Pkg.instantiate()
 basename(dirname(Pkg.project().path))
 
 
