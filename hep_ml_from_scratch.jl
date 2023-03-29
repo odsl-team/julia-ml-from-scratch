@@ -113,7 +113,7 @@ function unbroadcast(δY::AbstractArray{<:Any,N}, size_X::Dims{M}) where {N,M}
     else
         #Trick to get type-stable dims to sum over, sum ignores non-exsisting dims:
         summing_dims = ntuple(d -> get(size_X, d, 1) == 1 ? d : N+100, N)
-        return sum(δY, dims = summing_dims)
+        return reshape(sum(δY, dims = summing_dims), size_X...)
     end
 end
 
