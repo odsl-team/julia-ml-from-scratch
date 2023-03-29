@@ -78,6 +78,7 @@ struct NoTangent end
 const δ∅ = NoTangent()
 Base.sum(::AbstractArray{<:NoTangent}) = δ∅
 
+pullback(δy, ::typeof(+), a, b) = (δ∅, δy, δy)
 
 pullback(δy, ::typeof(*), a, b) = (δ∅, δy * b', a' * δy)
 
