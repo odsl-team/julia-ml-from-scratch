@@ -286,8 +286,8 @@ function pullback(δy, ::typeof(binary_xentropy), label, output::Real)
     δ∅, δ∅, - δy / force_nz(ifelse(label, output, output - 1))
 end
 
-# The binary cross-entroy is the log-likelihood of a Bernoulli distribution
-# (uncomment to check):
+# The binary cross-entroy is the negative log-likelihood of a Bernoulli
+# distribution (uncomment to verify):
 
 #using Distributions
 #binary_xentropy(true, 0.3) ≈ - logpdf(Bernoulli(0.3), true)
