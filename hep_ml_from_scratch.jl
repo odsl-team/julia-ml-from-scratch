@@ -101,19 +101,34 @@ function pullback(δy, f::Fix1, x2)
 end
 
 
+unbroadcast(δY::NoTangent, size_X::Tuple{}) = δY
+unbroadcast(δY::NoTangent, size_X::Dims) = δY
+
+unbroadcast(δY, size_X::Tuple{}) = sum(δY)
+
+function unbroadcast(δY::AbstractArray{<:Any,N}, size_X::Dims{M}) where {N,M}
+    if size(δY) == size_X
+        return δY
+    else
+        #Trick to get type-stable dims to sum over, sum ignores non-exsisting dims:
+        summing_dims = ntuple(d -> get(size_X, d, 1) == 1 ? d : N+100, N)
+        return sum(δY, dims = summing_dims)
+    end
+end
+
 _bcf_pullback_kernel(δy_ntpl1, args...) = pullback(only(δy_ntpl1), args...)
 
 function pullback(δY, bf::BroadcastFunction, Xs...)
-    #Require all inputs to have the same shape, to simplify things:
-    @assert all(isequal(size(first(Xs))), map(size, Xs))
-
     #Wrap δY in StructArray with eltype NTuple{1} to make broadcast return a
     #StructArray. Easy GPU-compatible way to separate tangent components:
     δY_ntpl1_sa = StructArray((δY,))
     δ_f_Xs_sa = broadcast(_bcf_pullback_kernel, δY_ntpl1_sa, bf.f, Xs...)
     δ_f_Xs = StructArrays.components(δ_f_Xs_sa)
 
-    return (sum(first(δ_f_Xs)), Base.tail(δ_f_Xs)...)
+    δ_f = sum(first(δ_f_Xs))
+    δ_f_Xs = map(unbroadcast, Base.tail(δ_f_Xs), map(size, Xs))
+
+    return (δ_f, δ_f_Xs...)
 end
 
 
