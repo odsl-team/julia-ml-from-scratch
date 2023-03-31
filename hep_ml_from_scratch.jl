@@ -38,11 +38,11 @@ using HDF5
 
 # ### Configuration options
 #
-# Use the environment variable `$DATADIR` to specify a different data location than the directory of this scipt/notebook.
+# Use the environment variable `$MLFS_DATADIR` to specify a different data location than the directory of this scipt/notebook.
 # Set `$COMPUTE_BACKEND` to "CUDA" or "METAL" to use the NVIDIA CUDA or Apple Metal compute backends, respectively.
 # Note: The Julia Metal implementation still has some issues, there may be problems with latency and memory overflow.
 
-datadir = get(ENV, "DATADIR", @__DIR__)
+datadir = get(ENV, "MLFS_DATADIR", @__DIR__)
 compute_backend = get(ENV, "COMPUTE_BACKEND", "CPU")
 
 
@@ -66,9 +66,11 @@ end
 
 # ### Dataset
 
-# We'll use the SUSY Data Set from the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/SUSY).
+# We'll use the SUSY Data Set from the
+# [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/SUSY).
 #
-# Note: Use the script "hepmldata_to_hdf5.jl" to convert the original "SUSY.csv.gz" to "SUSY.hdf5".
+# Note: Use `include("download_dataset.jl")` to download the original
+# "SUSY.csv.gz" and convert it to "SUSY.hdf5".
 
 input = h5open(joinpath(datadir, "SUSY.hdf5"))
 features = copy(transpose(read(input["features"])))

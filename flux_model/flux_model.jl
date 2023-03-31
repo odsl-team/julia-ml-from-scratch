@@ -4,7 +4,7 @@ import Flux, Optimisers, MLUtils
 import Plots, ProgressMeter
 import HDF5
 
-datadir = get(ENV, "DATADIR", dirname(@__DIR__))
+datadir = get(ENV, "MLFS_DATADIR", dirname(@__DIR__))
 
 input = HDF5.h5open(joinpath(datadir, "SUSY.hdf5"))
 features = copy(transpose(read(input["features"])))
