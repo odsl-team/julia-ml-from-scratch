@@ -13,7 +13,7 @@
 using Pkg
 Pkg.activate(@__DIR__)
 #Need to run this only once:
-#Pkg.instantiate()
+Pkg.instantiate()
 basename(dirname(Pkg.project().path))
 
 
