@@ -33,33 +33,38 @@ using Adapt, StructArrays, ConstructionBase
 using Plots, ProgressMeter
 using HDF5
 
+# Run on CPU by default:
 
-# ### Configuration options
-#
-# Use the environment variable `$MLFS_DATADIR` to specify a different data location than the directory of this scipt/notebook.
-# Set `$COMPUTE_BACKEND` to "CUDA" or "METAL" to use the NVIDIA CUDA or Apple Metal compute backends, respectively.
-# Note: The Julia Metal implementation still has some issues, there may be problems with latency and memory overflow.
+ArrayType = Array
 
-datadir = get(ENV, "MLFS_DATADIR", @__DIR__)
-compute_backend = get(ENV, "COMPUTE_BACKEND", "CPU")
+# To use NVIDIA CUDA, uncomment and run:
 
+#Pkg.add("CUDA") # Need to run this only once
+#using CUDA
+#ArrayType = CuArray
 
-maybe_copy(A::AbstractArray) = A
+# To use AMD ROCm (AMDGPU.jl still maturing, do not expect competitive
+# performance), uncomment and run:
 
-if compute_backend == "CPU"
-    ArrayType = Array
-elseif compute_backend == "CUDA"
-    using CUDA
-    ArrayType = CuArray
-elseif compute_backend == "METAL"
-    using Metal
-    ArrayType = MtlArray
+#Pkg.add("AMDGPU") # Need to run this only once
+#using AMDGPU
+#ArrayType = ROCArray
 
-    #See https://github.com/JuliaGPU/Metal.jl/issues/149:
-    maybe_copy(A::SubArray{<:Real, N, <:MtlArray}) where N = copy(A)
-else
-    error("Unsupported compute backend: $compute_backend")
-end
+# To try using Intel oneAPI (oneAPI.jl is not very mature yet, do not expect
+# acceptable performance and do expect memory management issues), uncomment
+# and run:
+
+#Pkg.add("oneAPI") # Need to run this only once
+#using oneAPI
+#ArrayType = oneArray
+
+# To try using Apple Metal (Metal.jl is not very mature yet, do not expect
+# acceptable performance and do expect memory management issues), uncomment
+# and run:
+
+#Pkg.add("METAL") # Need to run this only once
+#using Metal
+#ArrayType = MtlArray
 
 
 # ### Dataset
@@ -74,7 +79,7 @@ include("download_dataset.jl")
 
 # Open "SUSY.hdf5" and read features and labels:
 
-input = h5open(joinpath(datadir, "SUSY.hdf5"))
+input = h5open("SUSY.hdf5")
 features = copy(transpose(read(input["features"])))
 labels = Bool.(transpose(read(input["labels"])))
 
@@ -267,6 +272,7 @@ end
 # The binary cross-entroy is the negative log-likelihood of a Bernoulli
 # distribution (uncomment to verify):
 
+#Pkg.add("Distributions") # Need to run this only once
 #using Distributions
 #binary_xentropy(true, 0.3) ≈ - logpdf(Bernoulli(0.3), true)
 
@@ -292,6 +298,11 @@ idxs_test = n_train+1:n_total
 m = adapt(ArrayType, model)
 X_all = adapt(ArrayType, features)
 L_all = adapt(ArrayType, labels)
+
+#Recursive views can cause trouble on some GPU backends, so copy SubArrays:
+
+maybe_copy(A::AbstractArray) = A
+maybe_copy(A::SubArray) = copy(A)
 
 L_train = maybe_copy(view(L_all, :, idxs_train))
 L_test = maybe_copy(view(L_all, :, idxs_test))
