@@ -1,13 +1,15 @@
-# HEP ML from scratch in Julia
+# Machine learning from scratch in Julia
 
-This is a Machine-learning from scratch" tutorial in Julia that uses a high
-energy physics (HEP) ML test dataset.
+This is a "Machine-learning from scratch" tutorial in Julia. It demonstrates
+how to implement a simple artificial neural network with automatic
+differentiation and a simple gradient descent optimizer, using only the
+Julia standard library and a (very) few data structure packages.
 
-The tutorial uses the
+This tutorial uses the
 [UCI ML SUSY Data Set](https://archive.ics.uci.edu/ml/datasets/SUSY), a
 binary clasification dataset with 5 million events and 18 features.
 
-You please download and install
+Please download and install
 [Julia v1.9](https://julialang.org/downloads/#upcoming_release) to run this
 tutorial. On Windows (only!), please make sure you have the
 [Visual C++ redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
@@ -30,13 +32,13 @@ and go through the following steps to
 * Install an [IJulia](https://github.com/JuliaLang/IJulia.jl) Jupyter Julia
 kernel tied to this tutorial.
 
-* Generate a Jupyter notebook version "hep_ml_from_scratch.ipynb" of the tutorial.
+* Generate a Jupyter notebook version "ml_from_scratch.ipynb" of the tutorial.
 
 ```
-julia> cd("PATH/TO/YOUR/DOWNLOAD/OF/julia-hepml-from-scratch")
+julia> cd("PATH/TO/YOUR/DOWNLOAD/OF/julia-ml-from-scratch")
 # Press "]" key to enter the Pkg console, then
 (@v1.9) pkg> activate .
-(julia-hepml-from-scratch) pkg> instantiate
+(julia-ml-from-scratch) pkg> instantiate
 # Press backspace (or <ctrl-C>) to exit the Pkg console, then
 julia> include("generate_notebook.jl")
 ```

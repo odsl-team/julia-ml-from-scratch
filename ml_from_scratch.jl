@@ -1,6 +1,6 @@
 # *This software is licensed under the MIT "Expat" License (MIT).*
 
-# ## HEP ML from scratch in Julia
+# ## ML from scratch in Julia
 #
 # April 2023, Oliver Schulz <oschulz@mpp.mpg.de>
 

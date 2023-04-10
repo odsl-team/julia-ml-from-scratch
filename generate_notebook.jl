@@ -18,4 +18,4 @@ function set_kernelspec!(content)
     return content
 end
 
-Literate.notebook("hep_ml_from_scratch.jl", ".", execute = false, name = "hep_ml_from_scratch", credit = true, postprocess = set_kernelspec!)
+Literate.notebook("ml_from_scratch.jl", ".", execute = false, name = "ml_from_scratch", credit = true, postprocess = set_kernelspec!)
