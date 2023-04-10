@@ -6,12 +6,11 @@
 
 # ### Julia project environment
 
-# Check that the right Julia project environment is active:
+# Ensure that the right Julia project environment is active:
 
-using Pkg
+import Pkg
 Pkg.activate(@__DIR__)
-#Need to run this only once:
-Pkg.instantiate()
+Pkg.instantiate() # Need to run this only once
 basename(dirname(Pkg.project().path))
 
 
