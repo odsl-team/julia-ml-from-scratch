@@ -159,32 +159,7 @@ end
 
 
 # ### Definition of a linear NN layer
-# 
-# A linear neural network layer that implements the function
-# $$A * x + b$$
-
-# A struct for the layer, make it a subtype of `Function`:
-
-struct LinearLayer{
-    MA<:AbstractMatrix{<:Real},
-    VB<:AbstractVector{<:Real}
-} <: Function
-    A::MA
-    b::VB
-end
-
-# Define what it does:
-
-(f::LinearLayer)(x::AbstractVecOrMat{<:Real}) = f.A * x .+ f.b
-
-# Define the pullback:
-
-function pullback(δy, f::LinearLayer, x)
-    _, δA, δx = pullback(δy, *, f.A, x)
-    δb = vec(sum(δy, dims = 2))
-    ((A = δA, b = δb), δx)
-end
-
+#
 # Glorot weight initialization schemes (with uniform and normal distribution):
 
 function glorot_uniform!(rng::AbstractRNG, A::AbstractMatrix{T}, gain::Real = one(T)) where {T<:Real}
@@ -204,16 +179,16 @@ function glorot_normal!(rng::AbstractRNG, A::AbstractMatrix{T}, gain::Real = one
     return A
 end
 
-# Convenience constructor:
+# Function to construct a linear neural network layer that implements the function
+# $$A * x + b$$
 
-function LinearLayer(rng::AbstractRNG, n_in::Integer, n_out::Integer, f_init! = glorot_uniform!, ::Type{T} = Float32) where {T<:Real}
+function linear_layer(rng::AbstractRNG, n_in::Integer, n_out::Integer, f_init! = glorot_uniform!, ::Type{T} = Float32) where {T<:Real}
     A = Matrix{T}(undef, n_out, n_in)
     f_init!(rng, A)
     b = similar(A, n_out)
     fill!(b, zero(T))
-    return LinearLayer(A, b)
+    return Fix1(.+, b) ∘ Fix1(*, A)
 end
-
 
 
 # ### Activation functions
@@ -243,11 +218,11 @@ rng = Random.default_rng()
 # in order of application:
 
 model_layers = (
-    LinearLayer(rng, 18, 128),
+    linear_layer(rng, 18, 128),
     BroadcastFunction(relu),
-    LinearLayer(rng, 128, 128),
+    linear_layer(rng, 128, 128),
     BroadcastFunction(relu),
-    LinearLayer(rng, 128, 1),
+    linear_layer(rng, 128, 1),
     BroadcastFunction(logistic)
 )
 
