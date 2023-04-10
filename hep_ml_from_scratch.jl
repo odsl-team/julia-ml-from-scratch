@@ -1,10 +1,8 @@
-# *This file is licensed under the MIT License (MIT).*
+# *This software is licensed under the MIT "Expat" License (MIT).*
 
 # ## HEP ML from scratch in Julia
 #
-# MPP IMPRS / TUM / ORIGINS Data Science Block Course
-#
-# March 2023, Oliver Schulz <oschulz@mpp.mpg.de>
+# April 2023, Oliver Schulz <oschulz@mpp.mpg.de>
 
 # ### Julia project environment
 

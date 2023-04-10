@@ -1,4 +1,4 @@
-# This script is licensed under the MIT License (MIT).
+# This software is licensed under the MIT "Expat" License.
 
 import Pkg
 

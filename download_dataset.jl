@@ -1,3 +1,5 @@
+# This software is licensed under the MIT "Expat" License.
+
 module DownloadSUSYDataset
 
 import Downloads
