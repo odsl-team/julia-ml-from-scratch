@@ -70,8 +70,12 @@ end
 # We'll use the SUSY Data Set from the
 # [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/SUSY).
 #
-# Note: Use `include("download_dataset.jl")` to download the original
-# "SUSY.csv.gz" and convert it to "SUSY.hdf5".
+# This will download the original "SUSY.csv.gz" and convert it to "SUSY.hdf5",
+# need to run this only once:
+
+include("download_dataset.jl")
+
+# Open "SUSY.hdf5" and read features and labels:
 
 input = h5open(joinpath(datadir, "SUSY.hdf5"))
 features = copy(transpose(read(input["features"])))
