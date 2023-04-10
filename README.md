@@ -25,19 +25,16 @@ Also install the *pre-release* version of the
 Now open a [Julia REPL](https://docs.julialang.org/en/v1/stdlib/REPL/)
 and go through the following steps to
 
-* Install the package [IJulia](https://github.com/JuliaLang/IJulia.jl)
-into your *default* Julia package environment and add the Julia kernel to your
-Jupyter configuration
-
 * Install all required Julia packages required for this tutorial
+
+* Install an [IJulia](https://github.com/JuliaLang/IJulia.jl) Jupyter Julia
+kernel tied to this tutorial.
 
 * Generate a Jupyter notebook version "hep_ml_from_scratch.ipynb" of the tutorial.
 
 ```
 julia> cd("PATH/TO/YOUR/DOWNLOAD/OF/julia-hepml-from-scratch")
 # Press "]" key to enter the Pkg console, then
-(@v1.9) pkg> add IJulia
-(@v1.9) pkg> build IJulia
 (@v1.9) pkg> activate .
 (julia-hepml-from-scratch) pkg> instantiate
 # Press backspace (or <ctrl-C>) to exit the Pkg console, then
