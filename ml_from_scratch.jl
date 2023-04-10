@@ -383,6 +383,7 @@ learn_schedule = [
 loss_history = Float64[]
 loss_ninputs = Int[]
 
+in_vscode_notebook = haskey(ENV, "VSCODE_CWD")
 ProgressMeter.ijulia_behavior(:clear)
 let m = m_trained
     n_input_total = size(L_train, 2) * sum([p.epochs for p in learn_schedule])
@@ -413,7 +414,10 @@ let m = m_trained
                 push!(loss_ninputs, n_done)
     
                 n_done += length(idxs)
-                ProgressMeter.update!(p, n_done; showvalues = [(:batchsize, batchsize), (:optimizer, optimizer), (:loss_current_batch, loss_current_batch),])
+                if !in_vscode_notebook
+                    #ProgessMeter output doesn't work well in VSCode notebooks yet.
+                    ProgressMeter.update!(p, n_done; showvalues = [(:batchsize, batchsize), (:optimizer, optimizer), (:loss_current_batch, loss_current_batch),])
+                end
             end
         end
     end
