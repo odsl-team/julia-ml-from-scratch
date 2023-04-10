@@ -27,7 +27,7 @@ using Base: Fix1
 using Base.Broadcast: BroadcastFunction
 using Base.Iterators: partition
 
-# Some data structure packages we need:
+# Some data structure packages that we'll need:
 
 using Adapt, StructArrays, ConstructionBase
 
@@ -35,6 +35,7 @@ using Adapt, StructArrays, ConstructionBase
 
 using Plots, ProgressMeter
 using HDF5
+
 
 # ### Configuration options
 #
@@ -155,7 +156,6 @@ function pullback(δy, lf::LogCalls, xs...)
     @info "pullback $(lf.f)"
     pullback(δy, lf.f, xs...)
 end
-
 
 
 # ### Definition of a linear NN layer
