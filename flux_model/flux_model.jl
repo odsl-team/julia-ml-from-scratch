@@ -40,7 +40,7 @@ batchsize = 50000
 dataloader = MLUtils.DataLoader((X_train, L_train), batchsize=batchsize, shuffle=true)
 
 loss_history = zeros(0)
-p = ProgressMeter.Progress(n_epochs * length(dataloader), 0.1, "Training...")
+p = ProgressMeter.Progress(n_epochs * length(dataloader), dt=0.1, desc="Training...")
 for epoch in 1:n_epochs
     for (x, y) in dataloader
         loss_train, grads = Flux.withgradient(flux_model) do m

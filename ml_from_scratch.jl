@@ -62,7 +62,7 @@ ArrayType = Array
 # acceptable performance and do expect memory management issues), uncomment
 # and run:
 
-#Pkg.add("METAL") # Need to run this only once
+#Pkg.add("Metal") # Need to run this only once
 #using Metal
 #ArrayType = MtlArray
 
@@ -399,31 +399,31 @@ ProgressMeter.ijulia_behavior(:clear)
 let m = m_trained
     n_input_total = size(L_train, 2) * sum([p.epochs for p in learn_schedule])
     n_done = 0
-    p = ProgressMeter.Progress(n_input_total, 0.1, "Training...")
-    
+    p = ProgressMeter.Progress(n_input_total, dt=0.1, desc="Training...")
+
     for lern_params in learn_schedule
         batchsize = lern_params.batchsize
         optimizer = lern_params.optimizer
         for epoch in 1:lern_params.epochs
             shuffled_idxs = shuffle(rng, axes(L_train, 2))
             partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
-    
+
             for idxs in partitions
                 L = L_train[:, idxs]
                 X = X_train[:, idxs]
-    
+
                 f_loss = f_loglike_loss(binary_xentropy, L)
                 f_model_loss = f_loss ∘ m
-                
+
                 loss_current_batch = f_model_loss(X)
                 grad_model_loss = pullback(one(Float32), f_model_loss, X)
                 grad_model = grad_model_loss[1].inner
-    
+
                 m = apply_opt(optimizer, m, grad_model)
-    
+
                 push!(loss_history, loss_current_batch)
                 push!(loss_ninputs, n_done)
-    
+
                 n_done += length(idxs)
                 if !in_vscode_notebook
                     #ProgessMeter output doesn't work well in VSCode notebooks yet.
@@ -433,7 +433,7 @@ let m = m_trained
         end
     end
     ProgressMeter.finish!(p)
-        
+
     global m_trained = m
 end
 
