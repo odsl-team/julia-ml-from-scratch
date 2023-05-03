@@ -15,7 +15,6 @@ tutorial. On Windows (only!), please make sure you have the
 [Visual C++ redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
 installed.
 
-
 You should also install [Visual Studio Code](https://code.visualstudio.com/download)
 and/or working Jupyter installation.
 [JupyterLab Desktop](https://github.com/jupyterlab/jupyterlab-desktop/releases)
@@ -29,8 +28,8 @@ and go through the following steps to
 
 * Install all required Julia packages required for this tutorial
 
-* Install an [IJulia](https://github.com/JuliaLang/IJulia.jl) Jupyter Julia
-kernel tied to this tutorial.
+* Add the [IJulia](https://github.com/JuliaLang/IJulia.jl) Jupyter Julia
+kernel to your *default" Julia project/environment (if not already present).
 
 * Generate a Jupyter notebook version "ml_from_scratch.ipynb" of the tutorial.
 
