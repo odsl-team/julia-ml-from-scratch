@@ -2,21 +2,6 @@
 
 import Pkg
 
-# Ensure IJulia is installed in default Julia environment
-
-Pkg.activate() # Activate default environment
-Pkg.instantiate() # Need to run this only once
-
-if !("IJulia" in keys(Pkg.project().dependencies))
-    @info "Installing IJulia into default Julia environment \"$(Pkg.project().path)\""
-    Pkg.add("IJulia")
-    Pkg.build("IJulia")
-    # Should not be necessary:
-    # IJulia.installkernel("Julia", "--project=@.")
-end
-import IJulia
-
-
 # Activate tutorial environment and generate Jupyter notebook
 
 Pkg.activate(@__DIR__)

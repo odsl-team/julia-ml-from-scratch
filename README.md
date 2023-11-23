@@ -9,18 +9,8 @@ This tutorial uses the
 [UCI ML SUSY Data Set](https://archive.ics.uci.edu/ml/datasets/SUSY), a
 binary clasification dataset with 5 million events and 18 features.
 
-Please download and install
-[Julia v1.9](https://julialang.org/downloads/#upcoming_release) to run this
-tutorial. On Windows (only!), please make sure you have the
-[Visual C++ redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
-installed.
-
-You should also install [Visual Studio Code](https://code.visualstudio.com/download) and the
-[VS-Code Julia extension](https://code.visualstudio.com/docs/languages/julia)
-and/or a working Jupyter installation.
-[JupyterLab Desktop](https://github.com/jupyterlab/jupyterlab-desktop/releases)
-is easy to install (but a full Anaconda or custom Python
-installation with Jupyter will work too, of course).
+Install and configure Julia: If you're new to Julia we recommend you follow
+the [instuctions linked here](https://github.com/oschulz/julia-setup).
 
 Now open a [Julia REPL](https://docs.julialang.org/en/v1/stdlib/REPL/)
 and go through the following steps to
