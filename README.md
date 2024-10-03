@@ -25,7 +25,7 @@ kernel to your *default" Julia project/environment (if not already present).
 ```
 julia> cd("PATH/TO/YOUR/DOWNLOAD/OF/julia-ml-from-scratch")
 # Press "]" key to enter the Pkg console, then
-(@v1.9) pkg> activate .
+(@v1.11) pkg> activate .
 (julia-ml-from-scratch) pkg> instantiate
 # Press backspace (or <ctrl-C>) to exit the Pkg console, then
 julia> include("generate_notebook.jl")
