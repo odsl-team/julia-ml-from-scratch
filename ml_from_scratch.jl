@@ -9,8 +9,10 @@
 # Ensure that the right Julia project environment is active:
 
 import Pkg
-Pkg.activate(@__DIR__)
-Pkg.instantiate() # Need to run this only once
+if basename(dirname(Pkg.project().path)) != "julia-ml-from-scratch"
+    Pkg.activate(@__DIR__)
+end
+#Pkg.instantiate() # Need to run this only once
 basename(dirname(Pkg.project().path))
 
 

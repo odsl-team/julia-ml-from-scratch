@@ -4,8 +4,11 @@ import Pkg
 
 # Activate tutorial environment and generate Jupyter notebook
 
-Pkg.activate(@__DIR__)
-Pkg.instantiate() # Need to run this only once
+import Pkg
+if basename(dirname(Pkg.project().path)) != "julia-ml-from-scratch"
+    Pkg.activate(@__DIR__)
+end
+#Pkg.instantiate() # Need to run this only once
 
 import Literate
 
