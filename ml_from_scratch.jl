@@ -37,36 +37,42 @@ using HDF5
 
 # Run on CPU by default:
 
-ArrayType = Array
 
-# To use NVIDIA CUDA, uncomment and run:
+# Set up :CPU, :CUDA (NVIDIA GPUs), :AMDGPU (AMD GPUs), :oneAPI (Intel GPUs),
+# or :Metal (Apple GPUs). Note: CPU and CUDA should work well, your milage
+# with the other backends will vary.
 
-#Pkg.add("CUDA") # Need to run this only once
-#using CUDA
-#ArrayType = CuArray
+run_on = :CPU
 
-# To use AMD ROCm (AMDGPU.jl still maturing, do not expect competitive
-# performance), uncomment and run:
+# When not running on CPU, you'll need to run one of these once (you may need
+# reload your Julia session afterwards):
 
-#Pkg.add("AMDGPU") # Need to run this only once
-#using AMDGPU
-#ArrayType = ROCArray
+## Pkg.add("CUDA")
+## Pkg.add("AMDGPU")
+## Pkg.add("oneAPI")
+## Pkg.add("Metal")
 
-# To try using Intel oneAPI (oneAPI.jl is not very mature yet, do not expect
-# acceptable performance and do expect memory management issues), uncomment
-# and run:
+# In Julia, different compute devices are tied to different array types.
+# We'll just set `ArrayType` as alias an for the right array type and use it
+# later to create arrays on the desired device:
 
-#Pkg.add("oneAPI") # Need to run this only once
-#using oneAPI
-#ArrayType = oneArray
-
-# To try using Apple Metal (Metal.jl is not very mature yet, do not expect
-# acceptable performance and do expect memory management issues), uncomment
-# and run:
-
-#Pkg.add("Metal") # Need to run this only once
-#using Metal
-#ArrayType = MtlArray
+if run_on == :CPU
+    ArrayType = Array
+elseif run_on == :CUDA
+    using CUDA
+    ArrayType = CuArray
+elseif run_on == :AMDGPU
+    using AMDGPU
+    ArrayType = ROCArray
+elseif run_on == :oneAPI
+    using oneAPI
+    ArrayType = oneArray
+elseif run_on == :Metal
+    using Metal
+    ArrayType = MtlArray
+else
+    error("Unsupported compute device type $run_on")
+end
 
 
 # ### Dataset
