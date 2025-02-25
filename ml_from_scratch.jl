@@ -28,7 +28,7 @@ using Base.Iterators: partition
 
 # Some data structure packages that we'll need:
 
-using Adapt, StructArrays, ConstructionBase
+using Adapt, StructArrays, ConstructionBase, OneTwoMany
 
 # Plotting and I/O packages:
 
@@ -359,34 +359,97 @@ grad_model = grad_model_loss[1].inner
 
 # ### Optimizer implementation
 
-# Let's define an `AbstractOptimizer` type to keeps things extensible:
+# Let's define an `OptAlg` type to keeps things extensible:
 
-abstract type AbstractOptimizer end
+abstract type OptAlg end
 
-apply_opt(::AbstractOptimizer, x, ::Union{NoTangent, Nothing}) = x
-apply_opt(opt::AbstractOptimizer, x::NTuple{N}, δx::NTuple{N}) where N = map((xi, dxi) -> apply_opt(opt, xi, dxi), x, δx)
-apply_opt(opt::AbstractOptimizer, x::NamedTuple{names}, δx::NamedTuple{names}) where names = map((xi, dxi) -> apply_opt(opt, xi, dxi), x, δx)
-apply_opt(opt::AbstractOptimizer, x::T, δx) where T = constructorof(T)(values(apply_opt(opt, getfields(x), δx))...)
+@kwdef struct OptState{OT<:OptAlg, NT<:NamedTuple}
+    content::NT
+end
+
+OptState{OT}(state::NT) where {OT<:OptAlg,NT<:NamedTuple} = OptState{OT, NT}(state)
+
+opt_init(optalg::OptAlg, p::Tuple) = map((p_i) -> opt_init(optalg, p_i), p)
+opt_init(optalg::OptAlg, p::NamedTuple) = map((p_i) -> opt_init(optalg, p_i), p)
+opt_init(optalg::OptAlg, p) = opt_init(optalg, getfields(p))
+
+
+opt_step(p, ::Union{NoTangent, Nothing}, state) = p, state
+
+function opt_step(p::Tuple, δp::Tuple, state::Tuple)
+    tmp = map(opt_step, p, δp, state)
+    return map(first, tmp), map(getsecond, tmp)
+end
+
+function opt_step(p::NamedTuple, δp::NamedTuple, state::NamedTuple)
+    tmp = map(opt_step, p, δp, state)
+    return map(first, tmp), map(getsecond, tmp)
+end
+
+function opt_step(p::T, δp::NamedTuple, state::NamedTuple) where T
+    new_p_nt, new_state = opt_step(getfields(p), δp, state)
+    constructorof(T)(values(new_p_nt)...), new_state
+end
 
 
 # A simple gradient decent optimizer with fixed learning rate:
 
-struct GradientDecent{T} <: AbstractOptimizer
-    rate::T
+@kwdef struct GradientDecent <: OptAlg
+    rate::Float64 = 1.0
 end
 
-apply_opt(opt::GradientDecent, x::T, δx::Number) where {T<:Number} = x - T(opt.rate) * δx
-
-function apply_opt(opt::GradientDecent, x::AbstractArray{T}, δx::AbstractArray{<:Number}) where {T<:Number}
-    x .- T(opt.rate) .* δx
+function opt_init(optalg::GradientDecent, p::Union{Real,AbstractArray{<:Real}})
+    T = eltype(p)
+    rate = T(optalg.rate)
+    return OptState{GradientDecent}((; rate))
 end
+
+function opt_step(p::Union{Real,AbstractArray{<:Real}}, δp::Union{Real,AbstractArray{<:Real}}, state::OptState{GradientDecent})
+    (;rate) = state.content
+    p_new = @. p - rate * δp
+    return p_new, OptState{GradientDecent}((;rate))
+end
+
+
+# The ADAM optimizer:
+
+@kwdef struct ADAM <: OptAlg
+    η::Float64 = 0.001
+    β::Tuple{Float64,Float64} = 0.9, 0.999
+    ϵ::Float64 = 1e-8
+end
+
+function opt_init(adam::ADAM, p::Union{Real,AbstractArray{<:Real}})
+    T = eltype(p)
+    η, β, ϵ = T(adam.η), T.(adam.β), T(adam.ϵ)
+    m, v, t = zero(p), zero(p), 0
+    return OptState{ADAM}((; η, β, ϵ, m, v, t))
+end
+
+function opt_step(p::Union{Real,AbstractArray{<:Real}}, δp::Union{Real,AbstractArray{<:Real}}, optstate::OptState{ADAM})
+    global g_state = (;p, δp, s = optstate)
+    (;η, β, ϵ, m, v, t) = optstate.content
+
+    t_new = t + 1
+    m_new = @. β[1] * m + (1 - β[1]) * δp
+    v_new = @. β[2] * v + (1 - β[2]) * (δp ^ 2)
+    m̂ = @. m_new / (1 - β[1]^t_new)
+    v̂ = @. v_new / (1 - β[2]^t_new)
+    p_new = @. p - η * m̂ / (sqrt(v̂) + ϵ)
+
+    return p_new, OptState{ADAM}((;η, β, ϵ, m = m_new, v = v_new, t = t_new))
+end
+
 
 
 # Let's test it:
 
-optimizer = GradientDecent(1)
+optalg = GradientDecent(rate = 1)
+#optalg = ADAM(η = 0.1)
+optstate = opt_init(optalg, m)
 
-apply_opt(optimizer, m, grad_model) isa typeof(m)
+m_new, optstate_new = opt_step(m, grad_model, optstate)
+m_new isa typeof(m)
 
 
 # ### Training the model
@@ -394,10 +457,16 @@ apply_opt(optimizer, m, grad_model) isa typeof(m)
 m_trained = deepcopy(m)
 
 learn_schedule = [
-    (batchsize = 1000, optimizer = GradientDecent(0.1), epochs = 1),
-    (batchsize = 5000, optimizer = GradientDecent(0.05), epochs = 1),
-    (batchsize = 50000, optimizer = GradientDecent(0.025), epochs = 1),
+    (batchsize = 1000, optalg = GradientDecent(0.1), epochs = 1),
+    (batchsize = 5000, optalg = GradientDecent(0.05), epochs = 1),
+    (batchsize = 50000, optalg = GradientDecent(0.025), epochs = 1),
 ]
+
+## learn_schedule = [
+##     (batchsize = 1000, optalg = ADAM(η = 0.001), epochs = 1),
+##     (batchsize = 5000, optalg = ADAM(η = 0.0001), epochs = 1),
+##     (batchsize = 50000, optalg = ADAM(η = 0.00001), epochs = 1),
+## ]
 
 loss_history = Float64[]
 loss_ninputs = Int[]
@@ -411,7 +480,8 @@ let m = m_trained
 
     for lern_params in learn_schedule
         batchsize = lern_params.batchsize
-        optimizer = lern_params.optimizer
+        optalg = lern_params.optalg
+        optstate = opt_init(optalg, m)
         for epoch in 1:lern_params.epochs
             shuffled_idxs = shuffle(rng, axes(L_train, 2))
             partitions = partition(adapt(ArrayType, shuffled_idxs), batchsize)
@@ -427,7 +497,7 @@ let m = m_trained
                 grad_model_loss = pullback(one(Float32), f_model_loss, X)
                 grad_model = grad_model_loss[1].inner
 
-                m = apply_opt(optimizer, m, grad_model)
+                m, optstate = opt_step(m, grad_model, optstate)
 
                 push!(loss_history, loss_current_batch)
                 push!(loss_ninputs, n_done)
@@ -435,7 +505,7 @@ let m = m_trained
                 n_done += length(idxs)
                 if !in_vscode_notebook
                     #ProgessMeter output doesn't work well in VSCode notebooks yet.
-                    ProgressMeter.update!(p, n_done; showvalues = [(:batchsize, batchsize), (:optimizer, optimizer), (:loss_current_batch, loss_current_batch),])
+                    ProgressMeter.update!(p, n_done; showvalues = [(:batchsize, batchsize), (:optalg, optalg), (:loss_current_batch, loss_current_batch),])
                 end
             end
         end
