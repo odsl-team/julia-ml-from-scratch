@@ -280,7 +280,6 @@ end
 # The binary cross-entroy is the negative log-likelihood of a Bernoulli
 # distribution (uncomment to verify):
 
-#Pkg.add("Distributions") # Need to run this only once
 #using Distributions
 #binary_xentropy(true, 0.3) ≈ - logpdf(Bernoulli(0.3), true)
 
