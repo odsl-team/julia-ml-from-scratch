@@ -2,7 +2,7 @@
 
 # ## ML from scratch in Julia
 #
-# April 2023, Oliver Schulz <oschulz@mpp.mpg.de>
+# February 2025, Oliver Schulz <oschulz@mpp.mpg.de>
 
 # ### Julia project environment
 
