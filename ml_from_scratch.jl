@@ -35,12 +35,12 @@ using Adapt, StructArrays, ConstructionBase, OneTwoMany
 using Plots, ProgressMeter
 using HDF5
 
-# Run on CPU by default:
 
+# ### Compute platform selection
 
-# Set up :CPU, :CUDA (NVIDIA GPUs), :AMDGPU (AMD GPUs), :oneAPI (Intel GPUs),
-# or :Metal (Apple GPUs). Note: CPU and CUDA should work well, your milage
-# with the other backends will vary.
+# Set `run_on` to :CPU, :CUDA (NVIDIA GPUs), :AMDGPU (AMD GPUs), :oneAPI
+# (Intel GPUs), or :Metal (Apple GPUs). Note: CPU and CUDA should work well,
+# your milage with the other backends will vary. Run on CPU by default:
 
 run_on = :CPU
 
