@@ -17,9 +17,6 @@ and go through the following steps to
 
 * Install all required Julia packages required for this tutorial
 
-* Add the [IJulia](https://github.com/JuliaLang/IJulia.jl) Jupyter Julia
-kernel to your *default" Julia project/environment (if not already present).
-
 * Generate a Jupyter notebook version "ml_from_scratch.ipynb" of the tutorial.
 
 ```
