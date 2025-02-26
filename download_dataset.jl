@@ -36,6 +36,8 @@ function download_dataset()
     else
         @info "Found dataset at \"$hdf5_filename\"."
     end
+
+    return hdf5_filename
 end
 
 end # module

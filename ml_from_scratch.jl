@@ -83,11 +83,11 @@ end
 # This will download the original "SUSY.csv.gz" and convert it to "SUSY.hdf5",
 # need to run this only once:
 
-include("download_dataset.jl")
+hdf5_filename = include("download_dataset.jl")
 
 # Open "SUSY.hdf5" and read features and labels:
 
-input = h5open("SUSY.hdf5")
+input = h5open(hdf5_filename)
 features = copy(transpose(read(input["features"])))
 labels = Bool.(transpose(read(input["labels"])))
 
