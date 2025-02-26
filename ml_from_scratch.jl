@@ -153,25 +153,6 @@ function pullback(δY, bf::BroadcastFunction, Xs...)
 end
 
 
-# ### Utility functions
-
-# Utility to log function calls:
-
-struct LogCalls{F} <: Function
-    f::F
-end
-
-function (lf::LogCalls)(xs...)
-    @info "primal $(lf.f)"
-    lf.f(xs...)
-end
-
-function pullback(δy, lf::LogCalls, xs...)
-    @info "pullback $(lf.f)"
-    pullback(δy, lf.f, xs...)
-end
-
-
 # ### Definition of a linear NN layer
 #
 # Glorot weight initialization schemes (with uniform and normal distribution):
