@@ -41,7 +41,7 @@ J_f * J_g * J_h
 
 clearops()
 
-# Since we run f(g(h(h))), we first get J_h, then J_g, and finally J_f. So
+# Since we run f(g(h(x))), we first get J_h, then J_g, and finally J_f. So
 # it's memory-efficient to compute the whole Jacobian in this order.
 
 J_f * (J_g * J_h)
